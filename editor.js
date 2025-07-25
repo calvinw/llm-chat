@@ -7,7 +7,7 @@ const sendButton = document.getElementById('send-button');
 const messageInput = document.getElementById('message-input');
 const clearChatButton = document.getElementById('clear-messages');
 
-const apiKey="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"
+// const apiKey = "your-openrouter-api-key-here"; // For development, add your API key here
 
 
 
