@@ -15,7 +15,7 @@ A web-based chat interface for Large Language Models using OpenRouter's API. Fea
 
 1. **Clone the repository**:
    ```bash
-   git clone https://github.com/yourusername/llm-chat.git
+   git clone https://github.com/calvinw/llm-chat.git
    cd llm-chat
    ```
 
