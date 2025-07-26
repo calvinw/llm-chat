@@ -1,9 +1,24 @@
+/**
+ * Model Management and Dropdown Population
+ * Fetches available models from OpenRouter API and populates the model selection dropdown
+ */
+
 import { DEFAULT_MODEL } from './defaults.js';
 
+// =============================================================================
+// MODEL FETCHING AND DROPDOWN POPULATION
+// =============================================================================
+
+/**
+ * Initialize model dropdown when DOM is ready
+ */
 document.addEventListener('DOMContentLoaded', function() {
     const modelSelect = document.getElementById('model');
 
-    // Fetch and populate models
+    /**
+     * Fetch available models from OpenRouter API
+     * Makes authenticated request to get all available AI models
+     */
     async function fetchModels() {
         try {
             const response = await fetch("https://openrouter.ai/api/v1/models", {
@@ -21,38 +36,54 @@ document.addEventListener('DOMContentLoaded', function() {
             populateModelDropdown(data.data);
         } catch (error) {
             console.error('Error fetching models:', error);
-            const settingsError = document.getElementById('settingsError');
-            if (settingsError) {
-                settingsError.textContent = 'Error fetching models. Please check your API key and try again.';
-            }
+            showModelError('Error fetching models. Please check your connection and try again.');
         }
     }
 
+    /**
+     * Populate the model dropdown with fetched models
+     * @param {Array} models - Array of model objects from OpenRouter API
+     */
     function populateModelDropdown(models) {
         // Clear existing options
         modelSelect.innerHTML = '<option value="">Select a model</option>';
 
-        // Sort all models alphabetically
+        // Sort models alphabetically for easier browsing
         const sortedModels = models.sort((a, b) => a.id.localeCompare(b.id));
         
-        // Add all models in alphabetical order
+        // Add all models to dropdown
         sortedModels.forEach(model => {
             const option = document.createElement('option');
             option.value = model.id;
             option.textContent = model.id;
-            // Set default selection to DEFAULT_MODEL
+            
+            // Pre-select the default model
             if (model.id === DEFAULT_MODEL) {
                 option.selected = true;
             }
+            
             modelSelect.appendChild(option);
         });
 
-        // Set default model and trigger change event
+        // Ensure default model is selected and trigger change event
         modelSelect.value = DEFAULT_MODEL;
         modelSelect.dispatchEvent(new Event('change'));
+        
+        console.log(`Loaded ${models.length} models, selected: ${DEFAULT_MODEL}`);
     }
 
+    /**
+     * Show error message when model fetching fails
+     * @param {string} message - Error message to display
+     */
+    function showModelError(message) {
+        const settingsError = document.getElementById('settingsError');
+        if (settingsError) {
+            settingsError.textContent = message;
+            settingsError.classList.remove('hidden');
+        }
+    }
 
-    // Call fetchModels when the page loads
+    // Initialize model fetching
     fetchModels();
 });

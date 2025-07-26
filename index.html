@@ -1,93 +1,167 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <!-- =================================================================== -->
+    <!-- META AND TITLE -->
+    <!-- =================================================================== -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chat App</title>
+    <title>LLM Chat Interface</title>
+
+    <!-- =================================================================== -->
+    <!-- EXTERNAL DEPENDENCIES -->
+    <!-- =================================================================== -->
+    <!-- Markdown processor for rich text formatting -->
     <script src="https://cdn.jsdelivr.net/npm/markdown-it@13.0.1/dist/markdown-it.min.js"></script>
+    
+    <!-- Tailwind CSS for styling (development only) -->
     <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Custom styles for chat messages and UI components -->
     <link href="styles.css" rel="stylesheet">
+
+    <!-- =================================================================== -->
+    <!-- MATHJAX CONFIGURATION -->
+    <!-- =================================================================== -->
+    <!-- Configure MathJax for LaTeX math rendering -->
     <script>
-    MathJax = {
+    window.MathJax = {
         tex: {
-            inlineMath: [['$', '$'], ['\\(', '\\)']],
-            displayMath: [['$$', '$$'], ['\\[', '\\]']],
-            processEscapes: true,
-            processEnvironments: true
-        },  
+            // Define math delimiters
+            inlineMath: [['$', '$'], ['\\(', '\\)']],          // $...$ and \(...\)
+            displayMath: [['$$', '$$'], ['\\[', '\\]']],       // $$...$$ and \[...\]
+            processEscapes: true,                               // Allow escaping with backslash
+            processEnvironments: true,                          // Process LaTeX environments
+            packages: {'[+]': ['ams', 'newcommand', 'configmacros']} // Include AMS math packages
+        },
         options: {
+            // Skip processing math inside these HTML tags
             skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre']
         }
     };
     </script>
+    
+    <!-- Load MathJax library -->
     <script id="MathJax-script" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
 </head>
+
 <body class="overflow-hidden h-screen bg-gray-50">
     <div class="flex flex-col h-screen">
-        <!-- Header with all controls -->
+        
+        <!-- =================================================================== -->
+        <!-- HEADER / CONTROL PANEL -->
+        <!-- =================================================================== -->
         <div class="bg-white border-b border-gray-200 p-3 flex-shrink-0">
+            <!-- Responsive grid layout for controls -->
             <div class="grid grid-cols-1 md:grid-cols-3 xl:grid xl:grid-cols-4 gap-3">
-                <!-- API Key - Full width on mobile, spans 3 cols on medium -->
+                
+                <!-- API Key Input -->
                 <div class="flex items-center gap-2 md:col-span-3 xl:col-span-1">
                     <label class="text-sm font-medium text-gray-600 shrink-0">API Key:</label>
-                    <input type="password" class="flex-1 min-w-0 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500" id="apiKey" placeholder="Enter key...">
+                    <input 
+                        type="password" 
+                        class="flex-1 min-w-0 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                        id="apiKey" 
+                        placeholder="Enter OpenRouter API key..."
+                        title="Enter your OpenRouter API key to start chatting"
+                    >
                 </div>
                 
-                <!-- Model Selection - Spans 2 cols on medium, 1 col on large -->
+                <!-- Model Selection Dropdown -->
                 <div class="flex items-center gap-2 md:col-span-2 xl:col-span-1">
                     <label class="text-sm font-medium text-gray-600 shrink-0">Model:</label>
-                    <select class="flex-1 min-w-0 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500" id="model">
-                        <option value="">Select model</option>
+                    <select 
+                        class="flex-1 min-w-0 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                        id="model"
+                        title="Choose which AI model to use for responses"
+                    >
+                        <option value="">Loading models...</option>
                     </select>
                 </div>
                 
-                <!-- Style Selection - 1 col on all sizes -->
+                <!-- Display Mode Selection -->
                 <div class="flex items-center gap-2 md:col-span-1 xl:col-span-1">
                     <span class="text-sm text-gray-600 shrink-0">Style:</span>
-                    <select class="flex-1 min-w-0 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500" id="displayMode">
+                    <select 
+                        class="flex-1 min-w-0 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                        id="displayMode"
+                        title="Switch between markdown formatting and plain text display"
+                    >
                         <option value="markdown" selected>Markdown</option>
                         <option value="text">Plain Text</option>
                     </select>
                 </div>
                 
-                <!-- Clear Messages - Full width on mobile/medium, 1 col on large -->
-                <button class="px-3 py-2 text-sm bg-red-600 hover:bg-red-700 text-white rounded font-medium focus:outline-none focus:ring-2 focus:ring-red-500 md:col-span-3 xl:col-span-1" id="clear-messages">
+                <!-- Clear Messages Button -->
+                <button 
+                    class="px-3 py-2 text-sm bg-red-600 hover:bg-red-700 text-white rounded font-medium focus:outline-none focus:ring-2 focus:ring-red-500 md:col-span-3 xl:col-span-1" 
+                    id="clear-messages"
+                    title="Clear all messages in the current conversation"
+                >
                     Clear Messages
                 </button>
             </div>
             
-            <!-- Error messages -->
-            <div id="settingsError" class="bg-red-100 border border-red-400 text-red-700 px-3 py-2 rounded mt-2 text-sm hidden">
+            <!-- Error Message Display Area -->
+            <div 
+                id="settingsError" 
+                class="bg-red-100 border border-red-400 text-red-700 px-3 py-2 rounded mt-2 text-sm hidden"
+                role="alert"
+            >
                 <!-- Error messages will be displayed here -->
             </div>
         </div>
         
-        <!-- Main Content -->
+        <!-- =================================================================== -->
+        <!-- MAIN CHAT INTERFACE -->
+        <!-- =================================================================== -->
         <div class="flex-1 flex flex-col p-2 sm:p-4 min-h-0" id="chat-panel">
             <div class="bg-white rounded-lg border border-gray-200 flex flex-col h-full min-h-0">
-                <!-- Messages area -->
+                
+                <!-- Messages Display Area -->
                 <div class="flex-1 overflow-y-auto p-4 min-h-0" id="messages-content">
-                    <div id="messages-inside" class="space-y-2"></div>
+                    <div id="messages-inside" class="space-y-2">
+                        <!-- Chat messages will be dynamically inserted here -->
+                    </div>
                 </div>
                 
-                <!-- Input area -->
+                <!-- Message Input Area -->
                 <div class="border-t border-gray-200 p-4 bg-white flex-shrink-0">
                     <div class="flex gap-2">
-                        <textarea class="flex-1 px-3 py-2 border border-gray-300 rounded-md resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" id="message-input" placeholder="Type your message..." rows="1"></textarea>
-                        <button class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 flex-shrink-0" id="send-button">
+                        <!-- Text Input -->
+                        <textarea 
+                            class="flex-1 px-3 py-2 border border-gray-300 rounded-md resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
+                            id="message-input" 
+                            placeholder="Type your message... (supports Markdown and LaTeX math)" 
+                            rows="1"
+                            autocomplete="off" 
+                            autocorrect="off" 
+                            autocapitalize="off" 
+                            spellcheck="false"
+                            title="Type your message here. Use ** for bold, * for italic, $...$ for math, $$...$$ for display math"
+                        ></textarea>
+                        
+                        <!-- Send Button -->
+                        <button 
+                            class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 flex-shrink-0" 
+                            id="send-button"
+                            title="Send message (or press Enter)"
+                        >
                             Send
                         </button>
                     </div>
-                </div>
                 </div>
             </div>
         </div>
     </div>
 
-
-    <script type="module" src="defaults.js"></script>
-    <script type="module" src="fetch-models.js"></script>
-    <script type="module" src="chat-engine.js"></script>
-    <script type="module" src="editor.js"></script>
+    <!-- =================================================================== -->
+    <!-- APPLICATION SCRIPTS -->
+    <!-- =================================================================== -->
+    <!-- Load all JavaScript modules in dependency order -->
+    <script type="module" src="defaults.js"></script>      <!-- Configuration defaults -->
+    <script type="module" src="fetch-models.js"></script>  <!-- Model fetching and dropdown -->
+    <script type="module" src="chat-engine.js"></script>   <!-- Core chat logic and API -->
+    <script type="module" src="editor.js"></script>        <!-- UI controller and event handling -->
 </body>
 </html>

@@ -1,17 +1,35 @@
+/**
+ * Chat UI Controller
+ * Handles all user interface interactions, message rendering, and display modes
+ */
+
 import ChatEngine from './chat-engine.js';
 import DEFAULT_SYSTEM_PROMPT, { DEFAULT_MODEL } from './defaults.js';
 
-// DOM Elements
+// =============================================================================
+// DOM ELEMENTS AND GLOBAL STATE
+// =============================================================================
+
+// Core DOM elements
 const apiKeyInput = document.getElementById('apiKey');
 const sendButton = document.getElementById('send-button');
 const messageInput = document.getElementById('message-input');
 const clearChatButton = document.getElementById('clear-messages');
+const displayModeSelect = document.getElementById('displayMode');
+const modelSelect = document.getElementById('model');
+const messagesInsideDiv = document.getElementById('messages-inside');
 
-
-
-
+// Global chat engine instance
 let chatEngine = null;
 
+// =============================================================================
+// CHAT ENGINE INITIALIZATION
+// =============================================================================
+
+/**
+ * Initialize the ChatEngine with API key and set up subscriptions
+ * @param {string} apiKey - OpenRouter API key
+ */
 async function initializeChatEngine(apiKey) {
     try {
         chatEngine = new ChatEngine({
@@ -19,138 +37,140 @@ async function initializeChatEngine(apiKey) {
             apiKey: apiKey,
             systemPrompt: DEFAULT_SYSTEM_PROMPT
         });
+
+        // Make available globally for debugging
+        window.chatEngine = chatEngine;
+
+        // Subscribe to message updates to refresh UI
+        chatEngine.subscribe("messages", updateMessagesUI);
+
+        console.log('ChatEngine initialized successfully');
     } catch (error) {
         console.error('Failed to initialize ChatEngine:', error);
-        const settingsError = document.getElementById('settingsError');
-        if (settingsError) {
-            settingsError.textContent = 'Please enter a valid OpenRouter API key.';
-            settingsError.classList.remove('hidden');
-        }
-        return;
+        showError('Please enter a valid OpenRouter API key.');
     }
-
-    window.chatEngine = chatEngine;
-
-    chatEngine.subscribe("messages", updateMessagesUI);
-
-    // Set up subscriptions - no need to display current model since dropdown shows it
-
-    // System message handling removed - using default only
-
-
-const displayModeSelect = document.getElementById('displayMode');
-displayModeSelect.addEventListener('change', (e) => {
-    updateMessagesUI();
-});
-
-    clearChatButton.addEventListener('click', () => {
-        if (chatEngine) {
-            chatEngine.store.commit('clearMessages');
-        }
-    });
-
-    const modelSelect = document.getElementById('model');
-    modelSelect.addEventListener('change', function() {
-      if (chatEngine) {
-        chatEngine.store.commit("setModel", this.value);
-      }
-    });
-
-      // Remove auto-close sidebar functionality - let user control it
-
 }
 
+// =============================================================================
+// MATH PROCESSING FOR MARKDOWN
+// =============================================================================
+
+/**
+ * Protects LaTeX math expressions from markdown processing corruption
+ * Replaces math expressions with placeholders, then restores them after markdown processing
+ * @param {string} markdown - Raw markdown text with potential math expressions
+ * @returns {Object} - Object with processed content and restore function
+ */
 function preprocessMarkdownForMath(markdown) {
-return markdown.replace(/\\\(/g, '\\\\(')
-		 .replace(/\\\)/g, '\\\\)')
-		 .replace(/\\\[/g, '\\\\[')
-		 .replace(/\\\]/g, '\\\\]')
-		 .replace(/\\\$/g, '\\\\$');
-}
-
-// Event listeners
-sendButton.addEventListener('click', (e) => {
-    e.preventDefault();
-    sendMessage();
-});
-
-messageInput.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        sendMessage();
-    }
-});
-
-async function sendMessage() {
-    let message = messageInput.value.trim();
-    if (!message) return;
-
-    // Check if chatEngine is initialized
-    if (!chatEngine) {
-        const settingsError = document.getElementById('settingsError');
-        if (settingsError) {
-            settingsError.textContent = 'Please enter your OpenRouter API key first.';
-            settingsError.classList.remove('hidden');
-        }
-        return;
-    }
-
-    messageInput.value = '';
-    messageInput.focus();
-
-    try {
-        await chatEngine.sendMessage(message);
-        // Clear any previous errors on success
-        const settingsError = document.getElementById('settingsError');
-        if (settingsError) {
-            settingsError.classList.add('hidden');
-        }
-    } catch (error) {
-        console.error('Error sending message:', error);
-        const settingsError = document.getElementById('settingsError');
-        if (settingsError) {
-            if (error.message.includes('CORS') || window.location.protocol === 'file:') {
-                settingsError.textContent = 'CORS error: Please run this app from a web server (not file://) or use a browser extension like CORS Unblock.';
-            } else {
-                settingsError.textContent = 'Error sending message. Please check your API key and selected model.';
-            }
-            settingsError.classList.remove('hidden');
-        }
-    }
-}
-
-const messagesInsideDiv = document.getElementById('messages-inside');
-
-function updateMessagesUIText() {
-    const messages = chatEngine.getMessages();
+    const mathParts = [];
+    let counter = 0;
     
-    // Set display mode marker for text mode
+    // Step 1: Replace display math $$...$$ with placeholders FIRST (order matters!)
+    let processed = markdown.replace(/\$\$([\s\S]*?)\$\$/g, (match, content) => {
+        const placeholder = `XMATHPLACEHOLDERX${counter}XDISPLAYXMATH`;
+        mathParts[counter] = match;
+        counter++;
+        return placeholder;
+    });
+    
+    // Step 2: Replace inline math $...$ with placeholders (after display math)
+    processed = processed.replace(/\$([^$\n]*?)\$/g, (match, content) => {
+        const placeholder = `XMATHPLACEHOLDERX${counter}XINLINEXMATH`;
+        mathParts[counter] = match;
+        counter++;
+        return placeholder;
+    });
+    
+    // Step 3: Escape other LaTeX delimiters to prevent conflicts
+    processed = processed.replace(/\\\(/g, '\\\\(')
+                      .replace(/\\\)/g, '\\\\)')
+                      .replace(/\\\[/g, '\\\\[')
+                      .replace(/\\\]/g, '\\\\]')
+                      .replace(/\\\$/g, '\\\\$');
+    
+    return {
+        content: processed,
+        restoreMath: function(htmlString) {
+            let restored = htmlString;
+            for (let i = 0; i < counter; i++) {
+                const displayPlaceholder = `XMATHPLACEHOLDERX${i}XDISPLAYXMATH`;
+                const inlinePlaceholder = `XMATHPLACEHOLDERX${i}XINLINEXMATH`;
+                
+                // Use string replacement instead of regex to avoid $ interpretation issues
+                if (restored.includes(displayPlaceholder)) {
+                    restored = restored.split(displayPlaceholder).join(mathParts[i]);
+                }
+                if (restored.includes(inlinePlaceholder)) {
+                    restored = restored.split(inlinePlaceholder).join(mathParts[i]);
+                }
+            }
+            return restored;
+        }
+    };
+}
+
+/**
+ * Render LaTeX math expressions using MathJax
+ * @param {HTMLElement} element - DOM element containing math expressions
+ */
+function renderMath(element) {
+    if (window.MathJax) {
+        window.MathJax.typesetPromise([element])
+            .catch((err) => console.error('MathJax typesetting failed:', err));
+    }
+}
+
+// =============================================================================
+// MESSAGE RENDERING - PLAIN TEXT MODE
+// =============================================================================
+
+/**
+ * Render messages in plain text mode (monospace font, no markdown processing)
+ * Used when display mode is set to "text"
+ */
+function updateMessagesUIText() {
+    if (!chatEngine) return;
+    
+    const messages = chatEngine.getMessages();
+    const visibleMessages = messages.filter(msg => msg.role !== 'system');
+    
+    // Mark current display mode for proper switching detection
     messagesInsideDiv.dataset.lastDisplayMode = 'text';
     
-    let messagesHTML = messages
-        .filter(msg => msg.role !== 'system')
+    // Generate HTML for all messages with monospace styling
+    const messagesHTML = visibleMessages
         .map((msg, index) => {
             const roleLabel = msg.role === 'user' ? 'USER' : 'AI';
-            
-            // Add streaming indicator for empty AI messages (streaming in progress)
-            const isLastMessage = index === messages.filter(msg => msg.role !== 'system').length - 1;
+            const isLastMessage = index === visibleMessages.length - 1;
             const isEmptyAI = msg.role === 'assistant' && msg.content.trim() === '';
             const streamingIndicator = (isLastMessage && isEmptyAI) ? '<span class="streaming-indicator"></span>' : '';
-            
             const borderClass = msg.role === 'user' ? 'border-l-4 border-l-blue-400' : 'border-l-4 border-l-green-400';
-            return `<div class="p-3 rounded border border-gray-200 ${borderClass} font-mono text-sm"><span class="font-semibold text-gray-800">${roleLabel}:</span> <span class="text-gray-700 whitespace-pre-wrap">${msg.content}${streamingIndicator}</span></div>`;
+            
+            return `<div class="p-3 rounded border border-gray-200 ${borderClass} font-mono text-sm">
+                <span class="font-semibold text-gray-800">${roleLabel}:</span> 
+                <span class="text-gray-700 whitespace-pre-wrap">${msg.content}${streamingIndicator}</span>
+            </div>`;
         })
         .join('');
 
     messagesInsideDiv.innerHTML = messagesHTML;
 }
 
+// =============================================================================
+// MESSAGE RENDERING - MARKDOWN MODE
+// =============================================================================
 
+/**
+ * Render messages in markdown mode with full formatting and math support
+ * Handles incremental updates during streaming and full re-renders on mode changes
+ */
 function updateMessagesUIMarkdown() {
+    if (!chatEngine) return;
+    
     const messages = chatEngine.getMessages();
     const visibleMessages = messages.filter(msg => msg.role !== 'system');
     
-    // Always do full render when switching display modes to ensure clean styling
+    // Check if display mode changed - if so, force full re-render
     const displayMode = document.getElementById('displayMode').value;
     const lastDisplayMode = messagesInsideDiv.dataset.lastDisplayMode;
     
@@ -160,51 +180,55 @@ function updateMessagesUIMarkdown() {
         return;
     }
     
+    // Determine rendering strategy based on current state
     const currentChildren = messagesInsideDiv.children.length;
     const messageCount = visibleMessages.length;
     
     if (currentChildren < messageCount) {
-        // Add new messages incrementally
+        // New messages arrived - add them incrementally
         addNewMessages(visibleMessages, currentChildren);
     } else if (currentChildren === messageCount) {
-        // Update existing last message (streaming)
+        // Same number of messages - update last message (streaming)
         updateLastMessage(visibleMessages);
     } else {
-        // Should rarely happen - full render as fallback
+        // Fewer messages than before - full re-render needed
         renderAllMessages(visibleMessages);
     }
 }
 
+/**
+ * Render all messages from scratch (used for display mode changes and fallbacks)
+ * @param {Array} visibleMessages - Array of message objects to render
+ */
 function renderAllMessages(visibleMessages) {
-    // Initialize markdown-it with better defaults
+    // Initialize markdown-it with conservative settings
     const md = window.markdownit({
-        html: false,        // Disable HTML tags in source
+        html: false,        // Disable HTML tags in source for security
         breaks: false,      // Don't convert '\n' in paragraphs into <br>
         linkify: true,      // Autoconvert URL-like text to links
-        typographer: false  // Disable some language-neutral replacement + quotes beautification
+        typographer: false  // Disable smart quotes and other replacements
     });
 
-    let messagesHTML = visibleMessages
+    const messagesHTML = visibleMessages
         .map((msg, index) => {
             const roleLabel = msg.role === 'user' ? 'USER' : 'AI';
-            const processedMarkdown = preprocessMarkdownForMath(msg.content.trim())
-            let contentHtml = md.render(processedMarkdown);
             
-            // Cleanup for list items
-            contentHtml = contentHtml
-                .replace(/^\s*<p>/, '')     // Remove opening <p> at start
-                .replace(/<\/p>\s*$/, '')   // Remove closing </p> at end
-                .replace(/<li><p>/g, '<li>') // Remove <p> tags inside list items
-                .replace(/<\/p><\/li>/g, '</li>') // Remove </p> tags inside list items
-                .trim();
+            // Process markdown with math protection
+            const mathProcessor = preprocessMarkdownForMath(msg.content.trim());
+            let contentHtml = md.render(mathProcessor.content);
+            contentHtml = mathProcessor.restoreMath(contentHtml);
             
-            // Add streaming indicator for empty AI messages (streaming in progress)
+            // Add streaming indicator for empty AI messages
             const isLastMessage = index === visibleMessages.length - 1;
             const isEmptyAI = msg.role === 'assistant' && msg.content.trim() === '';
             const streamingIndicator = (isLastMessage && isEmptyAI) ? '<span class="streaming-indicator"></span>' : '';
             
             const borderClass = msg.role === 'user' ? 'border-l-4 border-l-blue-400' : 'border-l-4 border-l-green-400';
-            return `<div class="chat-message p-3 rounded border border-gray-200 ${borderClass}"><span class="font-semibold text-gray-800">${roleLabel}:</span> <span class="text-gray-700">${contentHtml}${streamingIndicator}</span></div>`;
+            
+            return `<div class="chat-message p-3 rounded border border-gray-200 ${borderClass}">
+                <span class="font-semibold text-gray-800">${roleLabel}:</span> 
+                <span class="text-gray-700">${contentHtml}${streamingIndicator}</span>
+            </div>`;
         })
         .join('');
 
@@ -212,8 +236,12 @@ function renderAllMessages(visibleMessages) {
     renderMath(messagesInsideDiv);
 }
 
+/**
+ * Add new messages incrementally (used during normal chat flow)
+ * @param {Array} visibleMessages - All visible messages
+ * @param {number} startIndex - Index to start adding from
+ */
 function addNewMessages(visibleMessages, startIndex) {
-    // Initialize markdown-it
     const md = window.markdownit({
         html: false,
         breaks: false,
@@ -221,49 +249,44 @@ function addNewMessages(visibleMessages, startIndex) {
         typographer: false
     });
     
-    // Only process new messages from startIndex onwards
+    // Process only new messages from startIndex onwards
     for (let i = startIndex; i < visibleMessages.length; i++) {
         const msg = visibleMessages[i];
         const roleLabel = msg.role === 'user' ? 'USER' : 'AI';
-        const processedMarkdown = preprocessMarkdownForMath(msg.content.trim());
-        let contentHtml = md.render(processedMarkdown);
         
-        // Cleanup for list items
-        contentHtml = contentHtml
-            .replace(/^\s*<p>/, '')
-            .replace(/<\/p>\s*$/, '')
-            .replace(/<li><p>/g, '<li>')
-            .replace(/<\/p><\/li>/g, '</li>')
-            .trim();
+        // Process markdown with math protection
+        const mathProcessor = preprocessMarkdownForMath(msg.content.trim());
+        let contentHtml = md.render(mathProcessor.content);
+        contentHtml = mathProcessor.restoreMath(contentHtml);
         
         // Add streaming indicator for empty AI messages
         const isEmptyAI = msg.role === 'assistant' && msg.content.trim() === '';
         const streamingIndicator = isEmptyAI ? '<span class="streaming-indicator"></span>' : '';
-        
         const borderClass = msg.role === 'user' ? 'border-l-4 border-l-blue-400' : 'border-l-4 border-l-green-400';
         
-        // Create new message element
+        // Create and append new message element
         const messageDiv = document.createElement('div');
         messageDiv.className = `chat-message p-3 rounded border border-gray-200 ${borderClass}`;
         messageDiv.innerHTML = `<span class="font-semibold text-gray-800">${roleLabel}:</span> <span class="text-gray-700">${contentHtml}${streamingIndicator}</span>`;
         
-        // Append to container
         messagesInsideDiv.appendChild(messageDiv);
-        
-        // Render math only for this new element
         renderMath(messageDiv);
     }
 }
 
+/**
+ * Update the content of the last message (used during streaming)
+ * @param {Array} visibleMessages - All visible messages
+ */
 function updateLastMessage(visibleMessages) {
     if (visibleMessages.length === 0) return;
     
     const lastMessage = visibleMessages[visibleMessages.length - 1];
     const lastElement = messagesInsideDiv.lastElementChild;
     
+    // Only update AI messages (user messages don't change after sending)
     if (!lastElement || lastMessage.role !== 'assistant') return;
     
-    // Initialize markdown-it
     const md = window.markdownit({
         html: false,
         breaks: false,
@@ -271,75 +294,173 @@ function updateLastMessage(visibleMessages) {
         typographer: false
     });
     
-    const processedMarkdown = preprocessMarkdownForMath(lastMessage.content.trim());
-    let contentHtml = md.render(processedMarkdown);
-    
-    // Cleanup for list items
-    contentHtml = contentHtml
-        .replace(/^\s*<p>/, '')
-        .replace(/<\/p>\s*$/, '')
-        .replace(/<li><p>/g, '<li>')
-        .replace(/<\/p><\/li>/g, '</li>')
-        .trim();
+    // Process markdown with math protection
+    const mathProcessor = preprocessMarkdownForMath(lastMessage.content.trim());
+    let contentHtml = md.render(mathProcessor.content);
+    contentHtml = mathProcessor.restoreMath(contentHtml);
     
     // Add streaming indicator for empty messages
     const isEmptyAI = lastMessage.content.trim() === '';
     const streamingIndicator = isEmptyAI ? '<span class="streaming-indicator"></span>' : '';
     
-    // Update only the content span of the last message
+    // Update only the content span, preserving the role label
     const contentSpan = lastElement.querySelector('.text-gray-700');
     if (contentSpan) {
         contentSpan.innerHTML = `${contentHtml}${streamingIndicator}`;
-        // Only render math for the updated element
         renderMath(lastElement);
     }
 }
 
-  function renderMath(element) {
-      if (window.MathJax) {
-          window.MathJax.typesetPromise([element])
-              .catch((err) => console.error('MathJax typesetting failed:', err));
-      }
-  }
+// =============================================================================
+// MAIN UI UPDATE CONTROLLER
+// =============================================================================
 
-
+/**
+ * Main UI update function - routes to appropriate rendering mode and handles scrolling
+ */
 function updateMessagesUI() {
     const displayMode = document.getElementById('displayMode').value;
-    // console.log('Display mode:', displayMode);
     
+    // Route to appropriate rendering function
     if (displayMode === 'markdown') {
-        // console.log('Calling updateMessagesUIMarkdown');
         updateMessagesUIMarkdown();
     } else {
-        // console.log('Calling updateMessagesUIText');
         updateMessagesUIText();
     }
 
-    // Auto-scroll to bottom for streaming (throttled)
+    // Auto-scroll to bottom to follow conversation
     const messagesContent = document.getElementById('messages-content');
     if (messagesContent) {
         messagesContent.scrollTop = messagesContent.scrollHeight;
     }
 }
 
+// =============================================================================
+// MESSAGE SENDING
+// =============================================================================
 
-document.addEventListener('DOMContentLoaded', function() {
-    // Ensure API key field starts blank
-    apiKeyInput.value = '';
-    
-    // Set up event listener for API key input
+/**
+ * Send user message to chat engine
+ */
+async function sendMessage() {
+    const message = messageInput.value.trim();
+    if (!message) return;
+
+    // Ensure chat engine is initialized
+    if (!chatEngine) {
+        showError('Please enter your OpenRouter API key first.');
+        return;
+    }
+
+    // Clear input and maintain focus
+    messageInput.value = '';
+    messageInput.focus();
+
+    try {
+        await chatEngine.sendMessage(message);
+        hideError();
+    } catch (error) {
+        console.error('Error sending message:', error);
+        
+        if (error.message.includes('CORS') || window.location.protocol === 'file:') {
+            showError('CORS error: Please run this app from a web server (not file://) or use a browser extension like CORS Unblock.');
+        } else {
+            showError('Error sending message. Please check your API key and selected model.');
+        }
+    }
+}
+
+// =============================================================================
+// ERROR HANDLING
+// =============================================================================
+
+/**
+ * Show error message to user
+ * @param {string} message - Error message to display
+ */
+function showError(message) {
+    const settingsError = document.getElementById('settingsError');
+    if (settingsError) {
+        settingsError.textContent = message;
+        settingsError.classList.remove('hidden');
+    }
+}
+
+/**
+ * Hide error message
+ */
+function hideError() {
+    const settingsError = document.getElementById('settingsError');
+    if (settingsError) {
+        settingsError.classList.add('hidden');
+    }
+}
+
+// =============================================================================
+// EVENT LISTENERS
+// =============================================================================
+
+/**
+ * Set up all event listeners for UI interactions
+ */
+function initializeEventListeners() {
+    // Send message on button click
+    sendButton.addEventListener('click', (e) => {
+        e.preventDefault();
+        sendMessage();
+    });
+
+    // Send message on Enter key (but not Shift+Enter)
+    messageInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            sendMessage();
+        }
+    });
+
+    // Handle display mode changes
+    displayModeSelect.addEventListener('change', () => {
+        updateMessagesUI();
+    });
+
+    // Handle clear messages button
+    clearChatButton.addEventListener('click', () => {
+        if (chatEngine) {
+            chatEngine.store.commit('clearMessages');
+        }
+    });
+
+    // Handle model selection changes
+    modelSelect.addEventListener('change', function() {
+        if (chatEngine) {
+            chatEngine.store.commit("setModel", this.value);
+        }
+    });
+
+    // Handle API key input changes
     apiKeyInput.addEventListener('input', function() {
         const key = apiKeyInput.value.trim();
-        if (key && key.length > 10) { // Basic validation - API keys are typically longer
+        if (key && key.length > 10) {
             initializeChatEngine(key);
-            // Clear any previous error messages
-            const settingsError = document.getElementById('settingsError');
-            if (settingsError) {
-                settingsError.classList.add('hidden');
-            }
+            hideError();
         } else {
-            // Reset chatEngine when key is invalid/empty
             chatEngine = null;
         }
     });
+}
+
+// =============================================================================
+// INITIALIZATION
+// =============================================================================
+
+/**
+ * Initialize the application when DOM is ready
+ */
+document.addEventListener('DOMContentLoaded', function() {
+    // Set up event listeners
+    initializeEventListeners();
+    
+    // No hardcoded API key - user must enter their own key
+    
+    console.log('Chat application initialized');
 });
