@@ -53,7 +53,7 @@ class ChatEngine {
     setupStore(systemPrompt) {
         this.store = new Store({
             state: {
-                model: "openai/gpt-4o-mini",
+                model: this.model,
                 messages: [{
                     role: 'system',
                     content: systemPrompt || 'You are a helpful AI assistant.'

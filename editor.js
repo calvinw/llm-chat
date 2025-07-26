@@ -1,5 +1,5 @@
 import ChatEngine from './chat-engine.js';
-import DEFAULT_SYSTEM_PROMPT from './defaults.js';
+import DEFAULT_SYSTEM_PROMPT, { DEFAULT_MODEL } from './defaults.js';
 
 // DOM Elements
 const apiKeyInput = document.getElementById('apiKey');
@@ -15,7 +15,7 @@ let chatEngine = null;
 async function initializeChatEngine(apiKey) {
     try {
         chatEngine = new ChatEngine({
-            model: "openai/gpt-4o-mini",
+            model: DEFAULT_MODEL,
             apiKey: apiKey,
             systemPrompt: DEFAULT_SYSTEM_PROMPT
         });
@@ -124,6 +124,9 @@ const messagesInsideDiv = document.getElementById('messages-inside');
 function updateMessagesUIText() {
     const messages = chatEngine.getMessages();
     
+    // Set display mode marker for text mode
+    messagesInsideDiv.dataset.lastDisplayMode = 'text';
+    
     let messagesHTML = messages
         .filter(msg => msg.role !== 'system')
         .map((msg, index) => {
@@ -146,6 +149,16 @@ function updateMessagesUIText() {
 function updateMessagesUIMarkdown() {
     const messages = chatEngine.getMessages();
     const visibleMessages = messages.filter(msg => msg.role !== 'system');
+    
+    // Always do full render when switching display modes to ensure clean styling
+    const displayMode = document.getElementById('displayMode').value;
+    const lastDisplayMode = messagesInsideDiv.dataset.lastDisplayMode;
+    
+    if (displayMode !== lastDisplayMode) {
+        messagesInsideDiv.dataset.lastDisplayMode = displayMode;
+        renderAllMessages(visibleMessages);
+        return;
+    }
     
     const currentChildren = messagesInsideDiv.children.length;
     const messageCount = visibleMessages.length;
@@ -311,21 +324,22 @@ function updateMessagesUI() {
 
 
 document.addEventListener('DOMContentLoaded', function() {
-    if (typeof apiKey !== 'undefined' && apiKey) {
-        apiKeyInput.value = apiKey;
-        initializeChatEngine(apiKey);
-    }
-    else {
-        apiKeyInput.addEventListener('input', function() {
-            const key = apiKeyInput.value.trim();
-            if (key && key.length > 10) { // Basic validation - API keys are typically longer
-                initializeChatEngine(key);
-                // Clear any previous error messages
-                const settingsError = document.getElementById('settingsError');
-                if (settingsError) {
-                    settingsError.classList.add('hidden');
-                }
+    // Ensure API key field starts blank
+    apiKeyInput.value = '';
+    
+    // Set up event listener for API key input
+    apiKeyInput.addEventListener('input', function() {
+        const key = apiKeyInput.value.trim();
+        if (key && key.length > 10) { // Basic validation - API keys are typically longer
+            initializeChatEngine(key);
+            // Clear any previous error messages
+            const settingsError = document.getElementById('settingsError');
+            if (settingsError) {
+                settingsError.classList.add('hidden');
             }
-        });
-    }
+        } else {
+            // Reset chatEngine when key is invalid/empty
+            chatEngine = null;
+        }
+    });
 });
