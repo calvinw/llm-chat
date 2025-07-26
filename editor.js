@@ -7,18 +7,27 @@ const sendButton = document.getElementById('send-button');
 const messageInput = document.getElementById('message-input');
 const clearChatButton = document.getElementById('clear-messages');
 
-// const apiKey = "your-openrouter-api-key-here"; // For development, add your API key here
 
 
 
 let chatEngine = null;
 
 async function initializeChatEngine(apiKey) {
-    chatEngine = new ChatEngine({
-        model: "openai/gpt-4o-mini",
-        apiKey: apiKey,
-        systemPrompt: DEFAULT_SYSTEM_PROMPT
-    });
+    try {
+        chatEngine = new ChatEngine({
+            model: "openai/gpt-4o-mini",
+            apiKey: apiKey,
+            systemPrompt: DEFAULT_SYSTEM_PROMPT
+        });
+    } catch (error) {
+        console.error('Failed to initialize ChatEngine:', error);
+        const settingsError = document.getElementById('settingsError');
+        if (settingsError) {
+            settingsError.textContent = 'Please enter a valid OpenRouter API key.';
+            settingsError.classList.remove('hidden');
+        }
+        return;
+    }
 
     window.chatEngine = chatEngine;
 
@@ -309,8 +318,13 @@ document.addEventListener('DOMContentLoaded', function() {
     else {
         apiKeyInput.addEventListener('input', function() {
             const key = apiKeyInput.value.trim();
-            if (key) {
+            if (key && key.length > 10) { // Basic validation - API keys are typically longer
                 initializeChatEngine(key);
+                // Clear any previous error messages
+                const settingsError = document.getElementById('settingsError');
+                if (settingsError) {
+                    settingsError.classList.add('hidden');
+                }
             }
         });
     }
