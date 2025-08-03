@@ -70,10 +70,6 @@ const MessagesContainer = ({
       <div className="space-y-2">
         {messages.length === 0 ? (
           <div className="flex items-center justify-center h-full text-gray-500">
-            <div className="text-center">
-              <p className="text-lg mb-2">👋 Welcome to the chat!</p>
-              <p className="text-sm">Start a conversation by typing a message below.</p>
-            </div>
           </div>
         ) : (
           messages.map((message, index) => (
@@ -81,6 +77,7 @@ const MessagesContainer = ({
               key={message.id || index}
               ref={el => messageRefs.current[index] = el}
               message={message}
+              messages={messages}
               renderMessage={renderMessage}
               index={index}
               isStreaming={isStreaming && index === messages.length - 1 && message.role === 'assistant'}

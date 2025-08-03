@@ -7,18 +7,49 @@ import ErrorDisplay from './components/ErrorDisplay.jsx';
 import MessagesContainer from './components/MessagesContainer.jsx';
 import MessageInput from './components/MessageInput.jsx';
 
-const LLMChatInterface = () => {
-  const [apiKey, setApiKey] = React.useState(localStorage.getItem('openrouter-api-key') || '');
+const LLMChatInterface = ({
+  apiKey: propApiKey = null,
+  defaultModel = "openai/gpt-4o-mini",
+  systemPrompt = "You are a helpful AI assistant. Please use dollar signs ($...$) and double dollar signs ($$...$$) for MathJax, and backslash any regular dollar signs (\\$) that are not for math.",
+  tools = null,
+  toolHandlers = null,
+  enableTools = false,
+  toolChoice = "auto",
+  parallelToolCalls = true,
+  onToolCall = null,
+  customModels = null,
+  className = "",
+  height = "600px",
+  showHeader = true,
+  showModelSelector = true,
+  showClearButton = true,
+  showDisplayModeToggle = true,
+  onMessage = null,
+  onError = null,
+  theme = "light"
+}) => {
+  const [apiKey, setApiKey] = React.useState(propApiKey || localStorage.getItem('openrouter-api-key') || '');
   const [displayMode, setDisplayMode] = React.useState('markdown');
   const [error, setError] = React.useState(null);
   const messagesEndRef = React.useRef(null);
 
-  // Save API key to localStorage
+  // Save API key to localStorage (only if not provided as prop)
   React.useEffect(() => {
-    if (apiKey) {
+    if (apiKey && !propApiKey) {
       localStorage.setItem('openrouter-api-key', apiKey);
     }
-  }, [apiKey]);
+  }, [apiKey, propApiKey]);
+
+  // Handle tool calling callback with user notification
+  const handleToolCall = React.useCallback((toolName, args, result, error) => {
+    if (onToolCall) {
+      onToolCall(toolName, args, result, error);
+    }
+    
+    if (error && onError) {
+      onError(error);
+    }
+  }, [onToolCall, onError]);
 
   const {
     messages,
@@ -29,9 +60,18 @@ const LLMChatInterface = () => {
     currentModel,
     setCurrentModel,
     registerStreamingCallbacks
-  } = useChatEngine(apiKey, "openai/gpt-4o-mini", "You are a helpful AI assistant. Please use dollar signs ($...$) and double dollar signs ($$...$$) for MathJax, and backslash any regular dollar signs (\\$) that are not for math.");
+  } = useChatEngine(
+    apiKey, 
+    defaultModel, 
+    systemPrompt,
+    enableTools ? tools : null,
+    enableTools ? toolHandlers : null,
+    toolChoice,
+    parallelToolCalls,
+    handleToolCall
+  );
   
-  const { models, modelsLoading } = useModelManager(null, apiKey);
+  const { models, modelsLoading } = useModelManager(customModels, apiKey);
   const { renderMessage } = useMarkdownRenderer(displayMode);
 
   // Auto-scroll to bottom when messages change
@@ -67,9 +107,21 @@ const LLMChatInterface = () => {
     try {
       setError(null);
       await sendMessage(message);
+      
+      // Notify parent component of message
+      if (onMessage) {
+        // Get the last assistant message from the messages array
+        const lastAssistantMessage = messages
+          .filter(msg => msg.role === 'assistant')
+          .pop();
+        onMessage(message, lastAssistantMessage?.content || '');
+      }
     } catch (err) {
       console.error('Error sending message:', err);
       setError(err);
+      if (onError) {
+        onError(err);
+      }
     }
   };
 
@@ -81,21 +133,26 @@ const LLMChatInterface = () => {
   };
 
   return (
-    <div className="flex flex-col h-screen">
+    <div className={`llm-chat-container ${className} ${theme === 'dark' ? 'llm-chat-dark' : 'llm-chat-light'} flex flex-col`} style={{ height }}>
       {/* Header / Control Panel */}
-      <ChatHeader
-        apiKey={apiKey}
-        setApiKey={setApiKey}
-        currentModel={currentModel}
-        setCurrentModel={setCurrentModel}
-        models={models}
-        modelsLoading={modelsLoading}
-        displayMode={displayMode}
-        setDisplayMode={setDisplayMode}
-        isLoading={isLoading || isStreaming}
-        onClearMessages={handleClearMessages}
-        messages={messages}
-      />
+      {showHeader && (
+        <ChatHeader
+          apiKey={apiKey}
+          setApiKey={setApiKey}
+          currentModel={currentModel}
+          setCurrentModel={setCurrentModel}
+          models={models}
+          modelsLoading={modelsLoading}
+          displayMode={displayMode}
+          setDisplayMode={setDisplayMode}
+          isLoading={isLoading || isStreaming}
+          onClearMessages={handleClearMessages}
+          messages={messages}
+          showModelSelector={showModelSelector}
+          showClearButton={showClearButton}
+          showDisplayModeToggle={showDisplayModeToggle}
+        />
+      )}
       
       {/* Error Message Display Area */}
       <ErrorDisplay error={error} />

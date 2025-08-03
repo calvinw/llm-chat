@@ -10,14 +10,18 @@ export class OpenRouterClient {
   }
 
   /**
-   * Make a streaming chat completion request (matches vanilla JS implementation)
+   * Make a streaming chat completion request with tool support
    * @param {Array} messages - Array of message objects
    * @param {string} model - Model ID to use
+   * @param {Array} tools - Optional array of tool definitions
+   * @param {string|object} toolChoice - Tool choice setting ("auto", "none", "required", or specific tool)
+   * @param {boolean} parallelToolCalls - Whether to allow parallel tool calls
    * @param {Function} onChunk - Callback for each content chunk
+   * @param {Function} onToolCall - Callback when tool calls are detected
    * @param {Function} onComplete - Callback when streaming completes
    * @param {Function} onError - Callback for errors
    */
-  async streamCompletion(messages, model, onChunk, onComplete, onError) {
+  async streamCompletion(messages, model, tools = null, toolChoice = "auto", parallelToolCalls = true, onChunk, onToolCall, onComplete, onError) {
     try {
       const response = await fetch(`${this.baseUrl}/chat/completions`, {
         method: 'POST',
@@ -30,17 +34,25 @@ export class OpenRouterClient {
         body: JSON.stringify({
           model,
           messages,
-          stream: true
+          stream: true,
+          ...(tools && tools.length > 0 && {
+            tools,
+            tool_choice: toolChoice,
+            parallel_tool_calls: parallelToolCalls
+          })
         })
       });
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        const errorText = await response.text();
+        console.error('API Error:', response.status, errorText);
+        throw new Error(`HTTP error! status: ${response.status}, details: ${errorText}`);
       }
 
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let accumulatedContent = '';
+      let currentToolCalls = [];
       let updateCount = 0;
 
       // Throttle updates for performance (same as vanilla JS)
@@ -53,7 +65,7 @@ export class OpenRouterClient {
         const { done, value } = await reader.read();
         
         if (done) {
-          onComplete(accumulatedContent);
+          onComplete(accumulatedContent, currentToolCalls.length > 0 ? currentToolCalls : null);
           break;
         }
 
@@ -65,7 +77,7 @@ export class OpenRouterClient {
             const data = line.slice(6).trim();
             
             if (data === '[DONE]') {
-              onComplete(accumulatedContent);
+              onComplete(accumulatedContent, currentToolCalls.length > 0 ? currentToolCalls : null);
               return;
             }
             
@@ -79,15 +91,73 @@ export class OpenRouterClient {
                 continue;
               }
               
-              const content = parsed.choices?.[0]?.delta?.content;
+              const delta = parsed.choices?.[0]?.delta;
+              const finishReason = parsed.choices?.[0]?.finish_reason;
               
-              if (content) {
-                accumulatedContent += content;
+              // Handle regular content
+              if (delta?.content) {
+                accumulatedContent += delta.content;
                 
-                // Update UI periodically for smooth streaming (same throttling as vanilla JS)
+                // Update UI periodically for smooth streaming
                 if (shouldUpdate()) {
                   onChunk(accumulatedContent);
                 }
+              }
+              
+              // Handle tool calls
+              if (delta?.tool_calls) {
+                delta.tool_calls.forEach((toolCall) => {
+                  // OpenAI streaming sends tool_calls with an index property
+                  const toolIndex = toolCall.index !== undefined ? toolCall.index : currentToolCalls.length;
+                  
+                  // Initialize tool call if it doesn't exist
+                  if (!currentToolCalls[toolIndex]) {
+                    currentToolCalls[toolIndex] = {
+                      id: toolCall.id || '',
+                      type: toolCall.type || 'function',
+                      function: { name: '', arguments: '' }
+                    };
+                  }
+                  
+                  // Update ID if provided (it might come in later chunks)
+                  if (toolCall.id) {
+                    currentToolCalls[toolIndex].id = toolCall.id;
+                  }
+                  
+                  // Accumulate function name
+                  if (toolCall.function?.name) {
+                    currentToolCalls[toolIndex].function.name += toolCall.function.name;
+                  }
+                  
+                  // Accumulate function arguments
+                  if (toolCall.function?.arguments) {
+                    currentToolCalls[toolIndex].function.arguments += toolCall.function.arguments;
+                  }
+                });
+                
+                // Debug log to see what we're accumulating
+                console.log('Current tool calls state:', currentToolCalls.map((tc, i) => ({
+                  index: i,
+                  id: tc?.id,
+                  name: tc?.function?.name,
+                  args: tc?.function?.arguments
+                })));
+              }
+              
+              // Check if tool calls are complete
+              if (finishReason === 'tool_calls' && currentToolCalls.length > 0) {
+                // Filter out any undefined/incomplete tool calls and log final state
+                const completedToolCalls = currentToolCalls.filter(tc => tc && tc.function && tc.function.name);
+                console.log('Final tool calls being sent:', completedToolCalls);
+                
+                if (onToolCall) {
+                  // Call onToolCall to handle tool execution
+                  onToolCall(completedToolCalls, accumulatedContent);
+                } else {
+                  // Fallback: call onComplete with tool calls if no onToolCall handler
+                  onComplete(accumulatedContent, completedToolCalls);
+                }
+                return;
               }
             } catch (parseError) {
               console.warn('Failed to parse streaming chunk:', parseError);
@@ -107,9 +177,12 @@ export class OpenRouterClient {
    * Make a non-streaming chat completion request (fallback)
    * @param {Array} messages - Array of message objects
    * @param {string} model - Model ID to use
-   * @returns {Promise<string>} - The completion text
+   * @param {Array} tools - Optional array of tool definitions
+   * @param {string|object} toolChoice - Tool choice setting
+   * @param {boolean} parallelToolCalls - Whether to allow parallel tool calls
+   * @returns {Promise<object>} - The completion response with content and tool_calls
    */
-  async getCompletion(messages, model) {
+  async getCompletion(messages, model, tools = null, toolChoice = "auto", parallelToolCalls = true) {
     try {
       const response = await fetch(`${this.baseUrl}/chat/completions`, {
         method: 'POST',
@@ -122,16 +195,27 @@ export class OpenRouterClient {
         body: JSON.stringify({
           model,
           messages,
-          stream: false
+          stream: false,
+          ...(tools && tools.length > 0 && {
+            tools,
+            tool_choice: toolChoice,
+            parallel_tool_calls: parallelToolCalls
+          })
         })
       });
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        const errorText = await response.text();
+        console.error('API Error:', response.status, errorText);
+        throw new Error(`HTTP error! status: ${response.status}, details: ${errorText}`);
       }
 
       const data = await response.json();
-      return data.choices?.[0]?.message?.content || '';
+      const message = data.choices?.[0]?.message;
+      return {
+        content: message?.content || '',
+        tool_calls: message?.tool_calls || null
+      };
     } catch (error) {
       console.error('Non-streaming request failed:', error);
       throw error;
@@ -153,7 +237,9 @@ export class OpenRouterClient {
       });
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        const errorText = await response.text();
+        console.error('API Error:', response.status, errorText);
+        throw new Error(`HTTP error! status: ${response.status}, details: ${errorText}`);
       }
 
       const data = await response.json();

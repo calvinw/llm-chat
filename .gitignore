@@ -39,3 +39,6 @@ logs/
 *backup*
 ignore/
 llm-artifacts-env/
+
+# API Keys and secrets
+setupkeys.sh

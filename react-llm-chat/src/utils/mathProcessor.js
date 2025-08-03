@@ -3,6 +3,8 @@
  * Protects math expressions from markdown processing corruption
  */
 
+import MarkdownIt from 'markdown-it';
+
 /**
  * Protects LaTeX math expressions from markdown processing corruption
  * Replaces math expressions with placeholders, then restores them after markdown processing
@@ -115,22 +117,23 @@ export function renderPlainText(content) {
  * @returns {Object} - Configured markdown-it instance
  */
 export function createMarkdownRenderer() {
-  if (typeof markdownit !== 'undefined') {
-    return markdownit({
+  try {
+    return new MarkdownIt({
       html: false, // Disable HTML for security
       breaks: true, // Convert \n to <br>
       linkify: true, // Auto-convert URLs to links
       typographer: true // Enable smart quotes and other typographic replacements
     });
+  } catch (error) {
+    console.warn('Failed to initialize markdown-it:', error);
+    // Fallback if markdown-it initialization fails
+    return {
+      render: (text) => {
+        console.warn('markdown-it not available, falling back to plain text');
+        return renderPlainText(text);
+      }
+    };
   }
-  
-  // Fallback if markdown-it is not available
-  return {
-    render: (text) => {
-      console.warn('markdown-it not available, falling back to plain text');
-      return renderPlainText(text);
-    }
-  };
 }
 
 export default {

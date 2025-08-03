@@ -2,11 +2,12 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import LLMChatInterface from './LLMChatInterface.jsx';
 
-function App() {
-    // Tool logging function
+const App = () => {
+    const [toolLog, setToolLog] = React.useState([]);
+
     const logTool = (message) => {
         const timestamp = new Date().toLocaleTimeString();
-        console.log(`[${timestamp}] ${message}`);
+        setToolLog(prev => [...prev, `[${timestamp}] ${message}`]);
     };
 
     // Define available tools
@@ -48,6 +49,23 @@ function App() {
                             default: "UTC"
                         }
                     }
+                }
+            }
+        },
+        {
+            type: "function",
+            function: {
+                name: "calculate",
+                description: "Perform a mathematical calculation",
+                parameters: {
+                    type: "object",
+                    properties: {
+                        expression: {
+                            type: "string",
+                            description: "Mathematical expression to evaluate (e.g., '2 + 3 * 4')"
+                        }
+                    },
+                    required: ["expression"]
                 }
             }
         }
@@ -97,6 +115,32 @@ function App() {
             } catch (error) {
                 throw new Error(`Invalid timezone: ${timezone}`);
             }
+        },
+
+        calculate: ({ expression }) => {
+            logTool(`Calculating: ${expression}`);
+            
+            try {
+                // Simple safe evaluation (only allow basic math operations)
+                const sanitized = expression.replace(/[^0-9+\-*/().\s]/g, '');
+                if (sanitized !== expression) {
+                    throw new Error('Expression contains invalid characters');
+                }
+                
+                const result = Function(`"use strict"; return (${sanitized})`)();
+                
+                if (typeof result !== 'number' || !isFinite(result)) {
+                    throw new Error('Result is not a valid number');
+                }
+                
+                return {
+                    expression,
+                    result,
+                    type: typeof result
+                };
+            } catch (error) {
+                throw new Error(`Calculation failed: ${error.message}`);
+            }
         }
     };
 
@@ -105,7 +149,7 @@ function App() {
         if (error) {
             logTool(`❌ ${toolName} failed: ${error.message}`);
         } else {
-            logTool(`✅ ${toolName} succeeded:`, result);
+            logTool(`✅ ${toolName} succeeded`);
         }
     };
 
@@ -119,6 +163,17 @@ function App() {
         logTool(`🚨 Error: ${error.message}`);
     };
 
+    // Update DOM log display
+    React.useEffect(() => {
+        const logElement = document.getElementById('log-content');
+        if (logElement) {
+            logElement.innerHTML = toolLog.length > 0 
+                ? toolLog.slice(-10).join('<br>')
+                : 'No tools executed yet...';
+            logElement.scrollTop = logElement.scrollHeight;
+        }
+    }, [toolLog]);
+
     return (
         <LLMChatInterface
             tools={tools}
@@ -129,11 +184,12 @@ function App() {
             onToolCall={handleToolCall}
             onMessage={handleMessage}
             onError={handleError}
-            systemPrompt="You are a helpful AI assistant with access to greeting and timezone tools. Use the tools when appropriate to help users. Be friendly and explain what tools you're using."
+            systemPrompt="You are a helpful AI assistant with access to several tools. Use the tools when appropriate to help users. You can greet people, tell time, and do calculations. Be friendly and explain what tools you're using."
             defaultModel="openai/gpt-4o-mini"
-            height="100vh"
+            height="600px"
         />
     );
-}
+};
 
-ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+const root = ReactDOM.createRoot(document.getElementById('chat-root'));
+root.render(<App />);

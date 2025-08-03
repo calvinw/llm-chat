@@ -1,13 +1,14 @@
 import React from 'react';
 /**
- * Simplified chat engine hook - NO STREAMING
- * Manages messages and API communication with simple request/response
+ * Chat engine hook with tool calling support
+ * Manages messages, API communication, and tool execution
  */
 
 import { OpenRouterClient } from '../utils/apiClient.js';
 import { DEFAULT_SYSTEM_PROMPT, MESSAGE_ROLES } from '../utils/constants.js';
+import useToolManager from './useToolManager.js';
 
-const useChatEngine = (apiKey, defaultModel, systemPrompt = DEFAULT_SYSTEM_PROMPT) => {
+const useChatEngine = (apiKey, defaultModel, systemPrompt = DEFAULT_SYSTEM_PROMPT, tools = null, toolHandlers = null, toolChoice = "auto", parallelToolCalls = true, onToolCall = null) => {
   // State management
   const [messages, setMessages] = React.useState([]);
   const [isLoading, setIsLoading] = React.useState(false);
@@ -20,6 +21,9 @@ const useChatEngine = (apiKey, defaultModel, systemPrompt = DEFAULT_SYSTEM_PROMP
     return apiKey ? new OpenRouterClient(apiKey) : null;
   }, [apiKey]);
 
+  // Tool manager for executing tools
+  const { executeTools } = useToolManager(toolHandlers, onToolCall);
+
   // Ref for streaming callbacks to access latest state
   const streamingCallbacksRef = React.useRef({});
 
@@ -28,13 +32,15 @@ const useChatEngine = (apiKey, defaultModel, systemPrompt = DEFAULT_SYSTEM_PROMP
     return `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   };
 
-  // Add a new message
-  const addMessage = (role, content) => {
+  // Add a new message with optional tool calls
+  const addMessage = (role, content, toolCalls = null, toolCallId = null) => {
     const newMessage = {
       id: generateMessageId(),
       role,
       content,
-      timestamp: Date.now()
+      timestamp: Date.now(),
+      ...(toolCalls && { tool_calls: toolCalls }),
+      ...(toolCallId && { tool_call_id: toolCallId })
     };
 
     setMessages(prev => [...prev, newMessage]);
@@ -46,7 +52,187 @@ const useChatEngine = (apiKey, defaultModel, systemPrompt = DEFAULT_SYSTEM_PROMP
     streamingCallbacksRef.current = callbacks;
   }, []);
 
-  // Send a message and get AI response (matches vanilla JS implementation)
+  // Continue conversation with tool results (internal helper)
+  const continueConversationWithTools = async (toolResults, currentApiMessages) => {
+    try {
+      // Add tool result messages to React state
+      toolResults.forEach(result => {
+        addMessage(MESSAGE_ROLES.TOOL, result.content, null, result.tool_call_id);
+      });
+
+      // Prepare API messages by extending the current conversation
+      const apiMessages = [
+        ...currentApiMessages,
+        ...toolResults.map(result => ({
+          role: MESSAGE_ROLES.TOOL,
+          content: result.content,
+          tool_call_id: result.tool_call_id
+        }))
+      ];
+
+      // Add placeholder for new AI response
+      const aiMsg = addMessage(MESSAGE_ROLES.ASSISTANT, '');
+
+      setIsStreaming(true);
+
+      // Continue conversation with tool results
+      await apiClient.streamCompletion(
+        apiMessages,
+        currentModel,
+        tools,
+        toolChoice,
+        parallelToolCalls,
+        // onChunk callback
+        (accumulatedContent) => {
+          if (streamingCallbacksRef.current.onChunk) {
+            streamingCallbacksRef.current.onChunk(accumulatedContent);
+          }
+        },
+        // onToolCall callback - handle nested tool calls
+        async (toolCalls, accumulatedContent = '') => {
+          console.log('Nested tool calls detected:', toolCalls);
+          const nestedResults = await executeTools(toolCalls);
+          
+          // For nested calls, we need to build the correct message sequence
+          const apiMessagesWithToolCall = [
+            ...apiMessages,
+            { role: MESSAGE_ROLES.ASSISTANT, content: accumulatedContent, tool_calls: toolCalls }
+          ];
+          
+          await continueConversationWithTools(nestedResults, apiMessagesWithToolCall);
+        },
+        // onComplete callback
+        (finalContent, toolCalls) => {
+          setIsStreaming(false);
+          setIsLoading(false);
+
+          if (toolCalls && toolCalls.length > 0) {
+            // Handle tool calls in the response
+            handleToolCallsInResponse(finalContent, toolCalls);
+          } else {
+            // Regular text response - update final message
+            setMessages(prev => {
+              const newMessages = [...prev];
+              const lastIndex = newMessages.length - 1;
+              if (newMessages[lastIndex] && newMessages[lastIndex].role === MESSAGE_ROLES.ASSISTANT) {
+                newMessages[lastIndex] = { ...newMessages[lastIndex], content: finalContent };
+              }
+              return newMessages;
+            });
+
+            if (streamingCallbacksRef.current.onComplete) {
+              streamingCallbacksRef.current.onComplete(finalContent);
+            }
+          }
+        },
+        // onError callback
+        async (streamingError) => {
+          console.error('Tool continuation streaming failed:', streamingError);
+          await handleStreamingError(streamingError, apiMessages);
+        }
+      );
+
+    } catch (error) {
+      console.error('Error continuing conversation with tools:', error);
+      setError(error);
+      setIsLoading(false);
+      setIsStreaming(false);
+    }
+  };
+
+  // Handle tool calls in response (internal helper)
+  const handleToolCallsInResponse = async (content, toolCalls) => {
+    try {
+      // Update the current message with content and tool calls
+      setMessages(prev => {
+        const newMessages = [...prev];
+        const lastIndex = newMessages.length - 1;
+        if (newMessages[lastIndex] && newMessages[lastIndex].role === MESSAGE_ROLES.ASSISTANT) {
+          newMessages[lastIndex] = { 
+            ...newMessages[lastIndex], 
+            content,
+            tool_calls: toolCalls 
+          };
+        }
+        return newMessages;
+      });
+
+      // Execute tools
+      const toolResults = await executeTools(toolCalls);
+      
+      // Continue conversation with tool results
+      // We need to reconstruct the API messages up to this point
+      const currentApiMessages = [
+        { role: MESSAGE_ROLES.SYSTEM, content: systemPrompt },
+        ...messages.map(msg => {
+          const message = { role: msg.role, content: msg.content };
+          if (msg.tool_calls) message.tool_calls = msg.tool_calls;
+          if (msg.tool_call_id) message.tool_call_id = msg.tool_call_id;
+          return message;
+        }),
+        { role: MESSAGE_ROLES.ASSISTANT, content, tool_calls: toolCalls }
+      ];
+      
+      await continueConversationWithTools(toolResults, currentApiMessages);
+
+    } catch (error) {
+      console.error('Error handling tool calls:', error);
+      setError(error);
+      setIsLoading(false);
+      setIsStreaming(false);
+    }
+  };
+
+  // Handle streaming errors (internal helper)
+  const handleStreamingError = async (streamingError, apiMessages) => {
+    console.error('Streaming failed, falling back to non-streaming:', streamingError.message);
+    setIsStreaming(false);
+    setIsLoading(true);
+    
+    try {
+      // Fallback to non-streaming API call
+      const response = await apiClient.getCompletion(apiMessages, currentModel, tools, toolChoice, parallelToolCalls);
+      
+      if (response.tool_calls && response.tool_calls.length > 0) {
+        // Handle tool calls in non-streaming response
+        await handleToolCallsInResponse(response.content, response.tool_calls);
+      } else {
+        // Regular text response
+        setMessages(prev => {
+          const newMessages = [...prev];
+          const lastIndex = newMessages.length - 1;
+          if (newMessages[lastIndex] && newMessages[lastIndex].role === MESSAGE_ROLES.ASSISTANT) {
+            newMessages[lastIndex] = { ...newMessages[lastIndex], content: response.content };
+          }
+          return newMessages;
+        });
+        
+        setIsLoading(false);
+        
+        if (streamingCallbacksRef.current.onComplete) {
+          streamingCallbacksRef.current.onComplete(response.content);
+        }
+      }
+    } catch (fallbackError) {
+      console.error('Fallback also failed:', fallbackError.message);
+      const errorMessage = `Error: ${fallbackError.message}`;
+      
+      setMessages(prev => {
+        const newMessages = [...prev];
+        const lastIndex = newMessages.length - 1;
+        if (newMessages[lastIndex] && newMessages[lastIndex].role === MESSAGE_ROLES.ASSISTANT) {
+          newMessages[lastIndex] = { ...newMessages[lastIndex], content: errorMessage };
+        }
+        return newMessages;
+      });
+      
+      setError(fallbackError);
+      setIsLoading(false);
+      throw fallbackError;
+    }
+  };
+
+  // Send a message and get AI response with tool support
   const sendMessage = async (userMessage) => {
     if (!apiClient) {
       throw new Error('API key is required');
@@ -66,93 +252,94 @@ const useChatEngine = (apiKey, defaultModel, systemPrompt = DEFAULT_SYSTEM_PROMP
     // Add user message
     const userMsg = addMessage(MESSAGE_ROLES.USER, userMessage.trim());
     
-    // Add placeholder AI message for streaming updates (matches vanilla JS)
+    // Add placeholder AI message for streaming updates
     const aiMsg = addMessage(MESSAGE_ROLES.ASSISTANT, '');
-    const aiMessageIndex = messages.length + 1; // +1 because we just added user message
 
     try {
-      // Prepare messages for API (include system message, exclude empty AI message)
+      // Prepare messages for API (include system message and conversation history)
       const apiMessages = [
         { role: MESSAGE_ROLES.SYSTEM, content: systemPrompt },
-        ...messages.map(msg => ({
-          role: msg.role,
-          content: msg.content
-        })),
+        ...messages.map(msg => {
+          const message = { role: msg.role, content: msg.content };
+          if (msg.tool_calls) message.tool_calls = msg.tool_calls;
+          if (msg.tool_call_id) message.tool_call_id = msg.tool_call_id;
+          return message;
+        }),
         { role: MESSAGE_ROLES.USER, content: userMessage.trim() }
       ];
 
       setIsStreaming(true);
       setIsLoading(false);
 
-      // Try streaming first (matches vanilla JS approach)
+      // Start streaming with tool support
       await apiClient.streamCompletion(
         apiMessages,
         currentModel,
-        // onChunk callback - updates DOM directly like vanilla JS
+        tools,
+        toolChoice,
+        parallelToolCalls,
+        // onChunk callback - updates DOM directly
         (accumulatedContent) => {
           if (streamingCallbacksRef.current.onChunk) {
             streamingCallbacksRef.current.onChunk(accumulatedContent);
           }
         },
-        // onComplete callback - updates React state when done
-        (finalContent) => {
-          setIsStreaming(false);
-          // Update React state with final content
+        // onToolCall callback - handle tool calls during streaming
+        async (toolCalls, accumulatedContent = '') => {
+          console.log('Tool calls detected:', toolCalls);
+          
+          // First, update the current assistant message with tool_calls and content
           setMessages(prev => {
             const newMessages = [...prev];
             const lastIndex = newMessages.length - 1;
             if (newMessages[lastIndex] && newMessages[lastIndex].role === MESSAGE_ROLES.ASSISTANT) {
-              newMessages[lastIndex] = { ...newMessages[lastIndex], content: finalContent };
+              newMessages[lastIndex] = { 
+                ...newMessages[lastIndex], 
+                content: accumulatedContent,
+                tool_calls: toolCalls 
+              };
             }
             return newMessages;
           });
-          if (streamingCallbacksRef.current.onComplete) {
-            streamingCallbacksRef.current.onComplete(finalContent);
+
+          // Execute tools
+          const toolResults = await executeTools(toolCalls);
+          
+          // Build the correct API message sequence
+          const apiMessagesWithToolCall = [
+            ...apiMessages,
+            { role: MESSAGE_ROLES.ASSISTANT, content: accumulatedContent, tool_calls: toolCalls }
+          ];
+          
+          await continueConversationWithTools(toolResults, apiMessagesWithToolCall);
+        },
+        // onComplete callback - handle final response
+        (finalContent, toolCalls) => {
+          setIsStreaming(false);
+          setIsLoading(false);
+
+          if (toolCalls && toolCalls.length > 0) {
+            // Handle tool calls in the response
+            handleToolCallsInResponse(finalContent, toolCalls);
+          } else {
+            // Regular text response - update final message
+            setMessages(prev => {
+              const newMessages = [...prev];
+              const lastIndex = newMessages.length - 1;
+              if (newMessages[lastIndex] && newMessages[lastIndex].role === MESSAGE_ROLES.ASSISTANT) {
+                newMessages[lastIndex] = { ...newMessages[lastIndex], content: finalContent };
+              }
+              return newMessages;
+            });
+
+            if (streamingCallbacksRef.current.onComplete) {
+              streamingCallbacksRef.current.onComplete(finalContent);
+            }
           }
         },
         // onError callback - fall back to non-streaming
         async (streamingError) => {
-          console.error('Streaming failed, falling back to non-streaming:', streamingError.message);
-          setIsStreaming(false);
-          setIsLoading(true);
-          
-          try {
-            // Fallback to non-streaming API call (matches vanilla JS)
-            const response = await apiClient.getCompletion(apiMessages, currentModel);
-            
-            // Update React state with response
-            setMessages(prev => {
-              const newMessages = [...prev];
-              const lastIndex = newMessages.length - 1;
-              if (newMessages[lastIndex] && newMessages[lastIndex].role === MESSAGE_ROLES.ASSISTANT) {
-                newMessages[lastIndex] = { ...newMessages[lastIndex], content: response };
-              }
-              return newMessages;
-            });
-            
-            setIsLoading(false);
-            
-            if (streamingCallbacksRef.current.onComplete) {
-              streamingCallbacksRef.current.onComplete(response);
-            }
-          } catch (fallbackError) {
-            console.error('Fallback also failed:', fallbackError.message);
-            const errorMessage = `Error: ${fallbackError.message}`;
-            
-            // Update React state with error
-            setMessages(prev => {
-              const newMessages = [...prev];
-              const lastIndex = newMessages.length - 1;
-              if (newMessages[lastIndex] && newMessages[lastIndex].role === MESSAGE_ROLES.ASSISTANT) {
-                newMessages[lastIndex] = { ...newMessages[lastIndex], content: errorMessage };
-              }
-              return newMessages;
-            });
-            
-            setError(fallbackError);
-            setIsLoading(false);
-            throw fallbackError;
-          }
+          await handleStreamingError(streamingError, apiMessages);
         }
       );
 
