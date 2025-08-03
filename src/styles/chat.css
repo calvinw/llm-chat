@@ -1,0 +1,121 @@
+/* Custom styles for chat application using Tailwind CSS */
+
+/* Chat message markdown styling with precise spacing */
+.chat-message h1,
+.chat-message h2,
+.chat-message h3,
+.chat-message h4,
+.chat-message h5,
+.chat-message h6 {
+  font-weight: 700;
+  margin-bottom: 0.25rem;
+  margin-top: 0;
+}
+
+.chat-message h1 { font-size: 1.25rem; }
+.chat-message h2 { font-size: 1.125rem; }
+.chat-message h3 { font-size: 1rem; }
+
+.chat-message p {
+  margin-bottom: 0.25rem;
+}
+
+.chat-message p:last-child {
+  margin-bottom: 0;
+}
+
+.chat-message ul,
+.chat-message ol {
+  margin-bottom: 0.25rem;
+  padding-left: 1.5rem;
+}
+
+.chat-message ul {
+  list-style-type: disc !important;
+  list-style-position: outside;
+}
+
+.chat-message ol {
+  list-style-type: decimal !important;
+  list-style-position: outside;
+}
+
+.chat-message li {
+  margin-bottom: 0;
+  line-height: 1.375;
+  display: list-item !important;
+}
+
+.chat-message strong {
+  font-weight: 600;
+}
+
+.chat-message em {
+  font-style: italic;
+}
+
+.chat-message code {
+  background-color: #f3f4f6;
+  padding: 0.125rem 0.25rem;
+  border-radius: 0.25rem;
+  font-size: 0.875rem;
+  font-family: ui-monospace, SFMono-Regular, 'SF Mono', Consolas, 'Liberation Mono', Menlo, monospace;
+}
+
+.chat-message pre {
+  background-color: #f3f4f6;
+  padding: 0.5rem;
+  border-radius: 0.25rem;
+  margin-bottom: 0.25rem;
+  overflow-x: auto;
+}
+
+.chat-message pre code {
+  background-color: transparent;
+  padding: 0;
+}
+
+/* Table styles */
+.chat-message table {
+  border-collapse: collapse;
+  width: 100%;
+  margin-bottom: 0.5rem;
+  border: 1px solid #d1d5db;
+}
+
+.chat-message table th,
+.chat-message table td {
+  border: 1px solid #d1d5db;
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+}
+
+.chat-message table th {
+  background-color: #f9fafb;
+  font-weight: 600;
+  color: #374151;
+}
+
+.chat-message table tr:nth-child(even) {
+  background-color: #f9fafb;
+}
+
+.chat-message table tr:hover {
+  background-color: #f3f4f6;
+}
+
+/* Streaming indicator (matches vanilla JS implementation) */
+.streaming-indicator {
+  display: inline-block;
+  width: 4px;
+  height: 1em;
+  background-color: #3b82f6;
+  animation: blink 1s infinite;
+  margin-left: 2px;
+}
+
+@keyframes blink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
+

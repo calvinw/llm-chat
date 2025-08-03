@@ -35,6 +35,9 @@ logs/
 *.tmp
 *.temp
 
+# Build outputs
+build/
+
 # Project specific
 *backup*
 ignore/
