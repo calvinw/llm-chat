@@ -60,11 +60,17 @@ const MessageInput = ({ onSendMessage, isLoading, apiKey }) => {
 
   // Default prompt buttons
   const defaultPrompts = [
-    "Can you explain multiple regression using formulas?",
-    "Can you list your tools, their arguments in a markdown table",
-    "Can you greet Calvin formally",
-    "Can you give the time in Miami?",
-    "Can you add 2.345 and 54.66?"
+    // "List your tools, their arguments in a markdown table",
+    // "Add 3.14 and 2.86 using the local_add_numbers tool",
+    // "Subtract 2.34 from 4.56 using the mcp_subtract_numbers tool",
+    // "Multiply 1.5 and 3.7 using the sse_multiply_numbers tool",
+    // "List the tables in the dolt database calvinw/BusMgmtBenchmarks/main",
+    // "Give the first 5 rows in the company_info table in calvinw/BusMgmtBenchmarks/main",
+    // "Describe the financials table in calvinw/BusMgmtBenchmarks/main",
+    // "Give me 10 examples of LaTeX formulas",
+    // "Explain conjoint analysis using formulas",
+    // "Explain the ROA breakdown in the Strategic Profit Model",
+    // "Explain multiple regression using formulas"
   ];
 
   const handlePromptClick = (prompt) => {

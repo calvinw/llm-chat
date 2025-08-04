@@ -7,12 +7,12 @@ from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 
 # Create MCP server
-mcp = FastMCP("SubtractNumbers", stateless_http=True)
+mcp = FastMCP("MultiplyNumbers")
 
 @mcp.tool()
-def mcp_subtract_numbers(a: float = 10.0, b: float = 5.0) -> dict:
-    """Subtract second number from first number"""
-    return {"a": a, "b": b, "result": a - b}
+def sse_multiply_numbers(a: float = 2.0, b: float = 3.5) -> dict:
+    """Multiply two numbers"""
+    return {"a": a, "b": b, "result": a * b}
 
 # Minimal OAuth endpoint (just enough for Claude.ai)
 async def oauth_metadata(request: Request):
@@ -21,7 +21,8 @@ async def oauth_metadata(request: Request):
         "issuer": base_url
     })
 
-http_app = mcp.http_app(transport="streamable-http", path='/mcp')
+# Create the ASGI app for SSE transport
+http_app = mcp.http_app(transport="sse", path='/sse')
 
 # Create a FastAPI app and mount the MCP server
 app = FastAPI(lifespan=http_app.lifespan)
@@ -43,6 +44,6 @@ app.add_api_route("/.well-known/oauth-authorization-server", oauth_metadata, met
 app.mount("/", http_app)
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 8001))
-    print(f"Subtract Service - MCP endpoint: http://localhost:{port}/mcp")
-    uvicorn.run("mcp_server:app", host="0.0.0.0", port=port, reload=True)
+    port = int(os.environ.get("PORT", 8002))
+    print(f"Multiply Service - MCP endpoint: http://localhost:{port}/sse")
+    uvicorn.run("sse_server:app", host="0.0.0.0", port=port, reload=True)

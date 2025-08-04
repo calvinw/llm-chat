@@ -14,40 +14,21 @@ function App() {
         {
             type: "function",
             function: {
-                name: "greet",
-                description: "Generate a personalized greeting for someone",
+                name: "local_add_numbers",
+                description: "Add two numbers together",
                 parameters: {
                     type: "object",
                     properties: {
-                        name: {
-                            type: "string",
-                            description: "The name of the person to greet"
+                        a: {
+                            type: "number",
+                            description: "First number to add"
                         },
-                        style: {
-                            type: "string",
-                            enum: ["casual", "formal", "funny"],
-                            description: "The style of greeting (optional)",
-                            default: "casual"
+                        b: {
+                            type: "number",
+                            description: "Second number to add"
                         }
                     },
-                    required: ["name"]
-                }
-            }
-        },
-        {
-            type: "function",
-            function: {
-                name: "get_time",
-                description: "Get the current time in a specific timezone",
-                parameters: {
-                    type: "object",
-                    properties: {
-                        timezone: {
-                            type: "string",
-                            description: "Timezone (e.g., 'America/New_York', 'Asia/Tokyo', 'UTC')",
-                            default: "UTC"
-                        }
-                    }
+                    required: ["a", "b"]
                 }
             }
         }
@@ -55,44 +36,14 @@ function App() {
 
     // Tool handler implementations
     const toolHandlers = {
-        greet: ({ name, style = "casual" }) => {
-            const greetings = {
-                casual: `Hey there, ${name}! 👋 Hope you're having a great day!`,
-                formal: `Good day, ${name}. It is a pleasure to make your acquaintance.`,
-                funny: `Well well well, if it isn't ${name}! 🎭 Ready to chat with your favorite AI?`
-            };
-            
+        local_add_numbers: ({ a, b }) => {
+            const result = a + b;
             return {
-                greeting: greetings[style] || greetings.casual,
-                name,
-                style,
-                timestamp: new Date().toISOString()
+                a: a,
+                b: b,
+                result: result,
+                operation: 'addition'
             };
-        },
-
-        get_time: ({ timezone = "UTC" }) => {
-            try {
-                const now = new Date();
-                const timeString = now.toLocaleString("en-US", { 
-                    timeZone: timezone,
-                    weekday: 'long',
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    second: '2-digit'
-                });
-                
-                return {
-                    timezone,
-                    current_time: timeString,
-                    unix_timestamp: Math.floor(now.getTime() / 1000),
-                    iso_string: now.toISOString()
-                };
-            } catch (error) {
-                throw new Error(`Invalid timezone: ${timezone}`);
-            }
         }
     };
 

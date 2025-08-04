@@ -3,7 +3,6 @@ import useChatEngine from './hooks/useChatEngine.js';
 import useModelManager from './hooks/useModelManager.js';
 import useMarkdownRenderer from './hooks/useMarkdownRenderer.js';
 import useMCPManager from './hooks/useMCPManager.js';
-import ChatHeader from './components/ChatHeader.jsx';
 import ErrorDisplay from './components/ErrorDisplay.jsx';
 import MessagesContainer from './components/MessagesContainer.jsx';
 import MessageInput from './components/MessageInput.jsx';
@@ -40,6 +39,8 @@ const LLMChatInterface = ({
   const {
     mcpServerUrl,
     setMcpServerUrl,
+    mcpTransport,
+    setMcpTransport,
     mcpConnectionStatus,
     mcpTools,
     mcpToolHandlers,
@@ -186,6 +187,8 @@ const LLMChatInterface = ({
         isLoading={isLoading || isStreaming}
         mcpServerUrl={mcpServerUrl}
         onMcpServerUrlChange={setMcpServerUrl}
+        mcpTransport={mcpTransport}
+        onMcpTransportChange={setMcpTransport}
         mcpConnectionStatus={mcpConnectionStatus}
       />
       

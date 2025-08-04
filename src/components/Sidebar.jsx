@@ -15,6 +15,8 @@ const Sidebar = ({
     isLoading,
     mcpServerUrl,
     onMcpServerUrlChange,
+    mcpTransport,
+    onMcpTransportChange,
     mcpConnectionStatus
 }) => {
     return (
@@ -119,6 +121,23 @@ const Sidebar = ({
                             </select>
                         </div>
 
+                        {/* MCP Transport Selection */}
+                        <div>
+                            <label className="block text-xs text-gray-600 mb-1">
+                                MCP Transport
+                            </label>
+                            <select
+                                value={mcpTransport || 'auto'}
+                                onChange={(e) => onMcpTransportChange?.(e.target.value)}
+                                className="w-full px-3 py-2 bg-white border border-gray-300 rounded text-sm text-gray-900 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                                title="Select MCP transport protocol"
+                            >
+                                <option value="auto">Auto-detect</option>
+                                <option value="streamable-http">Streamable HTTP</option>
+                                <option value="sse-legacy">SSE Legacy</option>
+                            </select>
+                        </div>
+
                         {/* MCP Server URL Input */}
                         <div>
                             <label className="block text-xs text-gray-600 mb-1">
@@ -137,12 +156,12 @@ const Sidebar = ({
                                 type="url"
                                 value={mcpServerUrl}
                                 onChange={(e) => onMcpServerUrlChange(e.target.value)}
-                                placeholder="http://localhost:8000/mcp"
+                                placeholder="http://localhost:8001/mcp or http://localhost:8002/sse"
                                 className="w-full px-3 py-2 bg-white border border-gray-300 rounded text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                                 title="Enter the URL of an MCP server to load additional tools"
                             />
                             <div className="text-xs text-gray-500 mt-1">
-                                Connect to remote MCP servers for additional tools
+                                Connect to MCP servers (supports both Streamable HTTP and SSE Legacy)
                             </div>
                         </div>
                     </div>

@@ -1,11 +1,12 @@
 import React from 'react';
-import { ImprovedMCPClient } from '../utils/mcpClient.js';
+import { MCPClient } from '../utils/mcpClient.js';
 
 /**
  * Hook to manage MCP server connections and tools
  */
-const useMCPManager = () => {
+const useMCPManager = (transport = 'auto') => {
   const [mcpServerUrl, setMcpServerUrl] = React.useState('');
+  const [mcpTransport, setMcpTransport] = React.useState(transport);
   const [mcpConnectionStatus, setMcpConnectionStatus] = React.useState(null);
   const [mcpTools, setMcpTools] = React.useState([]);
   const [mcpToolHandlers, setMcpToolHandlers] = React.useState({});
@@ -29,8 +30,8 @@ const useMCPManager = () => {
       try {
         setMcpConnectionStatus('connecting');
         
-        // Create new MCP client
-        const client = new ImprovedMCPClient(mcpServerUrl);
+        // Create new MCP client with transport
+        const client = new MCPClient(mcpServerUrl, mcpTransport);
         const result = await client.connect();
         
         if (result.success) {
@@ -68,7 +69,7 @@ const useMCPManager = () => {
     // Debounce the connection attempt
     const timeoutId = setTimeout(connectToMCP, 1000);
     return () => clearTimeout(timeoutId);
-  }, [mcpServerUrl]);
+  }, [mcpServerUrl, mcpTransport]);
 
   // Cleanup on unmount
   React.useEffect(() => {
@@ -82,6 +83,8 @@ const useMCPManager = () => {
   return {
     mcpServerUrl,
     setMcpServerUrl,
+    mcpTransport,
+    setMcpTransport,
     mcpConnectionStatus,
     mcpTools,
     mcpToolHandlers,
