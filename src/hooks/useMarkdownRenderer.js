@@ -31,9 +31,12 @@ const useMarkdownRenderer = (displayMode = 'markdown') => {
       const { content: processedContent, restoreMath } = preprocessMarkdownForMath(content);
       
       // Step 2: Render markdown to HTML
-      const htmlContent = markdownRenderer.render(processedContent);
+      let htmlContent = markdownRenderer.render(processedContent);
       
-      // Step 3: Restore math expressions
+      // Step 3: Remove wrapping paragraph tags to make content inline
+      htmlContent = htmlContent.replace(/^<p>/, '').replace(/<\/p>\s*$/, '');
+      
+      // Step 4: Restore math expressions
       const finalContent = restoreMath(htmlContent);
       
       return finalContent;
@@ -45,7 +48,9 @@ const useMarkdownRenderer = (displayMode = 'markdown') => {
       // Try to render without math processing as a fallback
       try {
         console.warn('Attempting fallback: rendering without math processing...');
-        const htmlContent = markdownRenderer.render(content);
+        let htmlContent = markdownRenderer.render(content);
+        // Remove wrapping paragraph tags for inline display
+        htmlContent = htmlContent.replace(/^<p>/, '').replace(/<\/p>\s*$/, '');
         return htmlContent;
       } catch (fallbackError) {
         console.error('Fallback also failed:', fallbackError);

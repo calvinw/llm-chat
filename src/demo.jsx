@@ -3,12 +3,6 @@ import ReactDOM from 'react-dom/client';
 import LLMChatInterface from './LLMChatInterface.jsx';
 
 const App = () => {
-    const [toolLog, setToolLog] = React.useState([]);
-
-    const logTool = (message) => {
-        const timestamp = new Date().toLocaleTimeString();
-        setToolLog(prev => [...prev, `[${timestamp}] ${message}`]);
-    };
 
     // Define available tools
     const tools = [
@@ -74,8 +68,6 @@ const App = () => {
     // Tool handler implementations
     const toolHandlers = {
         greet: ({ name, style = "casual" }) => {
-            logTool(`Greeting ${name} with ${style} style`);
-            
             const greetings = {
                 casual: `Hey there, ${name}! 👋 Hope you're having a great day!`,
                 formal: `Good day, ${name}. It is a pleasure to make your acquaintance.`,
@@ -91,8 +83,6 @@ const App = () => {
         },
 
         get_time: ({ timezone = "UTC" }) => {
-            logTool(`Getting time for timezone: ${timezone}`);
-            
             try {
                 const now = new Date();
                 const timeString = now.toLocaleString("en-US", { 
@@ -118,8 +108,6 @@ const App = () => {
         },
 
         calculate: ({ expression }) => {
-            logTool(`Calculating: ${expression}`);
-            
             try {
                 // Simple safe evaluation (only allow basic math operations)
                 const sanitized = expression.replace(/[^0-9+\-*/().\s]/g, '');
@@ -147,33 +135,23 @@ const App = () => {
     // Handle tool execution events
     const handleToolCall = (toolName, args, result, error) => {
         if (error) {
-            logTool(`❌ ${toolName} failed: ${error.message}`);
+            console.log(`❌ ${toolName} failed: ${error.message}`);
         } else {
-            logTool(`✅ ${toolName} succeeded`);
+            console.log(`✅ ${toolName} succeeded`);
         }
     };
 
     // Handle message events
     const handleMessage = (userMessage, assistantResponse) => {
-        logTool(`💬 User: "${userMessage.substring(0, 50)}..."`);
+        console.log(`💬 User: "${userMessage.substring(0, 50)}..."`);
     };
 
     // Handle errors
     const handleError = (error) => {
-        logTool(`🚨 Error: ${error.message}`);
+        console.log(`🚨 Error: ${error.message}`);
     };
 
-    // Update DOM log display
-    React.useEffect(() => {
-        const logElement = document.getElementById('log-content');
-        if (logElement) {
-            logElement.innerHTML = toolLog.length > 0 
-                ? toolLog.slice(-10).join('<br>')
-                : 'No tools executed yet...';
-            logElement.scrollTop = logElement.scrollHeight;
-        }
-    }, [toolLog]);
-
+    
     return (
         <LLMChatInterface
             tools={tools}

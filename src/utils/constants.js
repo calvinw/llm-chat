@@ -4,13 +4,12 @@
 
 export const DEFAULT_SYSTEM_PROMPT = "You are a helpful AI assistant. Please use dollar signs ($...$) and double dollar signs ($$...$$) for MathJax, and backslash any regular dollar signs (\\$) that are not for math.";
 
-export const DEFAULT_MODEL = "openai/gpt-4o-mini";
-
 export const MESSAGE_ROLES = {
   USER: 'user',
   ASSISTANT: 'assistant',
   SYSTEM: 'system',
-  TOOL: 'tool'
+  TOOL: 'tool',
+  TOOL_EXECUTION: 'tool_execution'
 };
 
 export const DISPLAY_MODES = {
@@ -37,7 +36,6 @@ export const TOOL_CALL_STATUS = {
 
 export default {
   DEFAULT_SYSTEM_PROMPT,
-  DEFAULT_MODEL,
   MESSAGE_ROLES,
   DISPLAY_MODES,
   API_CONFIG,

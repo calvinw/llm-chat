@@ -45,8 +45,10 @@ const useModelManager = (customModels, apiKey) => {
         if (isMounted) {
           setError(err);
           setLoading(false);
-          // No fallback - error out if models can't be fetched
-          setModels([]);
+          // Fallback to default model if API call fails
+          setModels([
+            { id: 'openai/gpt-4o-mini', name: 'GPT-4o Mini', description: 'Fallback model when API is unavailable' }
+          ]);
         }
       }
     };

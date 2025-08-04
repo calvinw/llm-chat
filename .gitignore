@@ -42,6 +42,7 @@ build/
 *backup*
 ignore/
 llm-artifacts-env/
+allFiles.txt
 
 # API Keys and secrets
 setupkeys.sh

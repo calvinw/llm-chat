@@ -56,8 +56,6 @@ function App() {
     // Tool handler implementations
     const toolHandlers = {
         greet: ({ name, style = "casual" }) => {
-            logTool(`Greeting ${name} with ${style} style`);
-            
             const greetings = {
                 casual: `Hey there, ${name}! 👋 Hope you're having a great day!`,
                 formal: `Good day, ${name}. It is a pleasure to make your acquaintance.`,
@@ -73,8 +71,6 @@ function App() {
         },
 
         get_time: ({ timezone = "UTC" }) => {
-            logTool(`Getting time for timezone: ${timezone}`);
-            
             try {
                 const now = new Date();
                 const timeString = now.toLocaleString("en-US", { 
@@ -103,20 +99,20 @@ function App() {
     // Handle tool execution events
     const handleToolCall = (toolName, args, result, error) => {
         if (error) {
-            logTool(`❌ ${toolName} failed: ${error.message}`);
+            console.log(`❌ ${toolName} failed: ${error.message}`);
         } else {
-            logTool(`✅ ${toolName} succeeded:`, result);
+            console.log(`✅ ${toolName} succeeded:`, result);
         }
     };
 
     // Handle message events
     const handleMessage = (userMessage, assistantResponse) => {
-        logTool(`💬 User: "${userMessage.substring(0, 50)}..."`);
+        console.log(`💬 User: "${userMessage.substring(0, 50)}..."`);
     };
 
     // Handle errors
     const handleError = (error) => {
-        logTool(`🚨 Error: ${error.message}`);
+        console.log(`🚨 Error: ${error.message}`);
     };
 
     return (
@@ -129,7 +125,7 @@ function App() {
             onToolCall={handleToolCall}
             onMessage={handleMessage}
             onError={handleError}
-            systemPrompt="You are a helpful AI assistant with access to greeting and timezone tools. Use the tools when appropriate to help users. Be friendly and explain what tools you're using."
+            systemPrompt=""
             defaultModel="openai/gpt-4o-mini"
             height="100vh"
         />

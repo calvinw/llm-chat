@@ -32,15 +32,16 @@ const useChatEngine = (apiKey, defaultModel, systemPrompt = DEFAULT_SYSTEM_PROMP
     return `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   };
 
-  // Add a new message with optional tool calls
-  const addMessage = (role, content, toolCalls = null, toolCallId = null) => {
+  // Add a new message with optional tool calls or tool execution data
+  const addMessage = (role, content, toolCalls = null, toolCallId = null, toolExecution = null) => {
     const newMessage = {
       id: generateMessageId(),
       role,
       content,
       timestamp: Date.now(),
       ...(toolCalls && { tool_calls: toolCalls }),
-      ...(toolCallId && { tool_call_id: toolCallId })
+      ...(toolCallId && { tool_call_id: toolCallId }),
+      ...(toolExecution && { toolExecution })
     };
 
     setMessages(prev => [...prev, newMessage]);
@@ -55,10 +56,8 @@ const useChatEngine = (apiKey, defaultModel, systemPrompt = DEFAULT_SYSTEM_PROMP
   // Continue conversation with tool results (internal helper)
   const continueConversationWithTools = async (toolResults, currentApiMessages) => {
     try {
-      // Add tool result messages to React state
-      toolResults.forEach(result => {
-        addMessage(MESSAGE_ROLES.TOOL, result.content, null, result.tool_call_id);
-      });
+      // Tool execution messages are already created in handleToolCallsInResponse
+      // No need to add tool result messages here
 
       // Prepare API messages by extending the current conversation
       const apiMessages = [
@@ -90,8 +89,61 @@ const useChatEngine = (apiKey, defaultModel, systemPrompt = DEFAULT_SYSTEM_PROMP
         },
         // onToolCall callback - handle nested tool calls
         async (toolCalls, accumulatedContent = '') => {
-          console.log('Nested tool calls detected:', toolCalls);
+          console.log('Tool calls detected in streaming:', toolCalls);
+          
+          // Update the current AI message with content (no tool_calls)
+          setMessages(prev => {
+            const newMessages = [...prev];
+            const lastIndex = newMessages.length - 1;
+            if (newMessages[lastIndex] && newMessages[lastIndex].role === MESSAGE_ROLES.ASSISTANT) {
+              newMessages[lastIndex] = { 
+                ...newMessages[lastIndex], 
+                content: accumulatedContent
+              };
+            }
+            return newMessages;
+          });
+
           const nestedResults = await executeTools(toolCalls);
+          
+          // Create separate tool execution messages
+          toolCalls.forEach((toolCall, index) => {
+            const toolResult = nestedResults[index];
+            
+            // Parse arguments to show resolved values (including defaults)
+            let resolvedArgs = {};
+            try {
+              resolvedArgs = JSON.parse(toolCall.function.arguments);
+            } catch (e) {
+              resolvedArgs = { _raw: toolCall.function.arguments };
+            }
+            
+            // Parse tool result
+            let parsedResult = {};
+            try {
+              parsedResult = JSON.parse(toolResult.content);
+            } catch (e) {
+              parsedResult = { _raw: toolResult.content };
+            }
+            
+            // Add tool execution message
+            console.log('Creating tool execution message from streaming:', {
+              role: MESSAGE_ROLES.TOOL_EXECUTION,
+              toolCall: {
+                name: toolCall.function.name,
+                arguments: resolvedArgs
+              },
+              toolResult: parsedResult
+            });
+            
+            addMessage(MESSAGE_ROLES.TOOL_EXECUTION, '', null, null, {
+              toolCall: {
+                name: toolCall.function.name,
+                arguments: resolvedArgs
+              },
+              toolResult: parsedResult
+            });
+          });
           
           // For nested calls, we need to build the correct message sequence
           const apiMessagesWithToolCall = [
@@ -143,16 +195,22 @@ const useChatEngine = (apiKey, defaultModel, systemPrompt = DEFAULT_SYSTEM_PROMP
   // Handle tool calls in response (internal helper)
   const handleToolCallsInResponse = async (content, toolCalls) => {
     try {
-      // Update the current message with content and tool calls
+      // Update the current AI message with content, or remove if empty
       setMessages(prev => {
         const newMessages = [...prev];
         const lastIndex = newMessages.length - 1;
+        
         if (newMessages[lastIndex] && newMessages[lastIndex].role === MESSAGE_ROLES.ASSISTANT) {
-          newMessages[lastIndex] = { 
-            ...newMessages[lastIndex], 
-            content,
-            tool_calls: toolCalls 
-          };
+          if (content && content.trim()) {
+            // Update with meaningful content
+            newMessages[lastIndex] = { 
+              ...newMessages[lastIndex], 
+              content
+            };
+          } else {
+            // Remove empty AI message
+            newMessages.splice(lastIndex, 1);
+          }
         }
         return newMessages;
       });
@@ -160,16 +218,57 @@ const useChatEngine = (apiKey, defaultModel, systemPrompt = DEFAULT_SYSTEM_PROMP
       // Execute tools
       const toolResults = await executeTools(toolCalls);
       
+      // Create separate tool execution messages
+      toolCalls.forEach((toolCall, index) => {
+        const toolResult = toolResults[index];
+        
+        // Parse arguments to show resolved values (including defaults)
+        let resolvedArgs = {};
+        try {
+          resolvedArgs = JSON.parse(toolCall.function.arguments);
+        } catch (e) {
+          resolvedArgs = { _raw: toolCall.function.arguments };
+        }
+        
+        // Parse tool result
+        let parsedResult = {};
+        try {
+          parsedResult = JSON.parse(toolResult.content);
+        } catch (e) {
+          parsedResult = { _raw: toolResult.content };
+        }
+        
+        // Add tool execution message
+        console.log('Creating tool execution message:', {
+          role: MESSAGE_ROLES.TOOL_EXECUTION,
+          toolCall: {
+            name: toolCall.function.name,
+            arguments: resolvedArgs
+          },
+          toolResult: parsedResult
+        });
+        
+        addMessage(MESSAGE_ROLES.TOOL_EXECUTION, '', null, null, {
+          toolCall: {
+            name: toolCall.function.name,
+            arguments: resolvedArgs
+          },
+          toolResult: parsedResult
+        });
+      });
+      
       // Continue conversation with tool results
       // We need to reconstruct the API messages up to this point
       const currentApiMessages = [
         { role: MESSAGE_ROLES.SYSTEM, content: systemPrompt },
-        ...messages.map(msg => {
-          const message = { role: msg.role, content: msg.content };
-          if (msg.tool_calls) message.tool_calls = msg.tool_calls;
-          if (msg.tool_call_id) message.tool_call_id = msg.tool_call_id;
-          return message;
-        }),
+        ...messages
+          .filter(msg => msg.role !== MESSAGE_ROLES.TOOL_EXECUTION) // Filter out display-only tool execution messages
+          .map(msg => {
+            const message = { role: msg.role, content: msg.content };
+            if (msg.tool_calls) message.tool_calls = msg.tool_calls;
+            if (msg.tool_call_id) message.tool_call_id = msg.tool_call_id;
+            return message;
+          }),
         { role: MESSAGE_ROLES.ASSISTANT, content, tool_calls: toolCalls }
       ];
       
@@ -259,12 +358,14 @@ const useChatEngine = (apiKey, defaultModel, systemPrompt = DEFAULT_SYSTEM_PROMP
       // Prepare messages for API (include system message and conversation history)
       const apiMessages = [
         { role: MESSAGE_ROLES.SYSTEM, content: systemPrompt },
-        ...messages.map(msg => {
-          const message = { role: msg.role, content: msg.content };
-          if (msg.tool_calls) message.tool_calls = msg.tool_calls;
-          if (msg.tool_call_id) message.tool_call_id = msg.tool_call_id;
-          return message;
-        }),
+        ...messages
+          .filter(msg => msg.role !== MESSAGE_ROLES.TOOL_EXECUTION) // Filter out display-only tool execution messages
+          .map(msg => {
+            const message = { role: msg.role, content: msg.content };
+            if (msg.tool_calls) message.tool_calls = msg.tool_calls;
+            if (msg.tool_call_id) message.tool_call_id = msg.tool_call_id;
+            return message;
+          }),
         { role: MESSAGE_ROLES.USER, content: userMessage.trim() }
       ];
 
@@ -288,22 +389,66 @@ const useChatEngine = (apiKey, defaultModel, systemPrompt = DEFAULT_SYSTEM_PROMP
         async (toolCalls, accumulatedContent = '') => {
           console.log('Tool calls detected:', toolCalls);
           
-          // First, update the current assistant message with tool_calls and content
+          // If there's meaningful content, update the assistant message, otherwise remove it
           setMessages(prev => {
             const newMessages = [...prev];
             const lastIndex = newMessages.length - 1;
+            
             if (newMessages[lastIndex] && newMessages[lastIndex].role === MESSAGE_ROLES.ASSISTANT) {
-              newMessages[lastIndex] = { 
-                ...newMessages[lastIndex], 
-                content: accumulatedContent,
-                tool_calls: toolCalls 
-              };
+              if (accumulatedContent && accumulatedContent.trim()) {
+                // Update with content
+                newMessages[lastIndex] = { 
+                  ...newMessages[lastIndex], 
+                  content: accumulatedContent
+                };
+              } else {
+                // Remove empty AI message
+                newMessages.splice(lastIndex, 1);
+              }
             }
             return newMessages;
           });
 
           // Execute tools
           const toolResults = await executeTools(toolCalls);
+          
+          // Create separate tool execution messages
+          toolCalls.forEach((toolCall, index) => {
+            const toolResult = toolResults[index];
+            
+            // Parse arguments to show resolved values (including defaults)
+            let resolvedArgs = {};
+            try {
+              resolvedArgs = JSON.parse(toolCall.function.arguments);
+            } catch (e) {
+              resolvedArgs = { _raw: toolCall.function.arguments };
+            }
+            
+            // Parse tool result
+            let parsedResult = {};
+            try {
+              parsedResult = JSON.parse(toolResult.content);
+            } catch (e) {
+              parsedResult = { _raw: toolResult.content };
+            }
+            
+            console.log('Creating tool execution message:', {
+              role: MESSAGE_ROLES.TOOL_EXECUTION,
+              toolCall: {
+                name: toolCall.function.name,
+                arguments: resolvedArgs
+              },
+              toolResult: parsedResult
+            });
+            
+            addMessage(MESSAGE_ROLES.TOOL_EXECUTION, '', null, null, {
+              toolCall: {
+                name: toolCall.function.name,
+                arguments: resolvedArgs
+              },
+              toolResult: parsedResult
+            });
+          });
           
           // Build the correct API message sequence
           const apiMessagesWithToolCall = [
@@ -315,11 +460,13 @@ const useChatEngine = (apiKey, defaultModel, systemPrompt = DEFAULT_SYSTEM_PROMP
         },
         // onComplete callback - handle final response
         (finalContent, toolCalls) => {
+          console.log('onComplete called with:', { finalContent, toolCalls: toolCalls?.length || 0 });
           setIsStreaming(false);
           setIsLoading(false);
 
           if (toolCalls && toolCalls.length > 0) {
             // Handle tool calls in the response
+            console.log('Handling tool calls in onComplete');
             handleToolCallsInResponse(finalContent, toolCalls);
           } else {
             // Regular text response - update final message

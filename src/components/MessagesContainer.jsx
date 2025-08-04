@@ -1,5 +1,5 @@
 import React from 'react';
-import Message from './Message';
+import Message from './Message.jsx';
 
 const MessagesContainer = ({ 
   messages, 
@@ -8,7 +8,8 @@ const MessagesContainer = ({
   renderMessage, 
   messagesEndRef,
   registerStreamingCallbacks,
-  displayMode
+  displayMode,
+  tools
 }) => {
   // Refs for each message (to enable direct DOM updates during streaming)
   const messageRefs = React.useRef([]);
@@ -66,13 +67,10 @@ const MessagesContainer = ({
   }, [messages, renderMessage, registerStreamingCallbacks, messagesEndRef, displayMode]);
 
   return (
-    <div className="flex-1 overflow-y-auto p-4 min-h-0">
-      <div className="space-y-2">
-        {messages.length === 0 ? (
-          <div className="flex items-center justify-center h-full text-gray-500">
-          </div>
-        ) : (
-          messages.map((message, index) => (
+    <div className="flex-1 overflow-y-auto p-4 min-h-0 flex flex-col">
+      <div className="flex-1">
+        <div className="space-y-2">
+          {messages.map((message, index) => (
             <Message 
               key={message.id || index}
               ref={el => messageRefs.current[index] = el}
@@ -82,20 +80,21 @@ const MessagesContainer = ({
               index={index}
               isStreaming={isStreaming && index === messages.length - 1 && message.role === 'assistant'}
               displayMode={displayMode}
+              tools={tools}
             />
-          ))
-        )}
-        
-        {/* Loading indicator for non-streaming requests */}
-        {isLoading && !isStreaming && (
-          <div className="chat-message p-3 rounded border border-gray-200 border-l-4 border-l-green-400">
-            <span className="font-semibold text-gray-800">AI:</span>{' '}
-            <span className="text-gray-500 italic">Thinking...</span>
-          </div>
-        )}
-        
-        {/* Invisible element to scroll to */}
-        <div ref={messagesEndRef} />
+          ))}
+          
+          {/* Loading indicator for non-streaming requests */}
+          {isLoading && !isStreaming && (
+            <div className="chat-message p-3 rounded border border-gray-200 border-l-4 border-l-green-400">
+              <span className="font-semibold text-gray-800">AI:</span>{' '}
+              <span className="text-gray-500 italic">Thinking...</span>
+            </div>
+          )}
+          
+          {/* Invisible element to scroll to */}
+          <div ref={messagesEndRef} />
+        </div>
       </div>
     </div>
   );
