@@ -13,19 +13,21 @@ A React-based chat interface component for Large Language Models using OpenRoute
 - **Full-screen interface** optimized for chat
 - **Console tool logging** for debugging
 - **Dual deployment**: Zero build (Babel) or Vite build process
+- **Combined MCP Server** with unified math tools and flexible transport options
 
 ## Available Tools
 
 ### Local Tools
 - **local_add_numbers(a, b)** - Add two numbers together
 
-### MCP Server Tools (Streamable HTTP)
-- **mcp_subtract_numbers(a, b)** - Subtract second number from first number
-- Server runs on `http://localhost:8001/mcp`
+### MCP Server Tools
+The MCP server includes complementary mathematical operations:
+- **multiply_numbers(a, b)** - Multiply two numbers together
+- **divide_numbers(a, b)** - Divide first number by second (with zero-division protection)
 
-### SSE Legacy Server Tools  
-- **sse_multiply_numbers(a, b)** - Multiply two numbers together
-- Server runs on `http://localhost:8002/sse`
+#### Server Options
+- **SSE (default)**: `python mcp_server.py --port 8000` → `http://localhost:8000/sse`
+- **HTTP**: `python mcp_server.py --transport http --port 8000` → `http://localhost:8000/mcp`
 
 ## MCP Transport Support
 
@@ -47,21 +49,24 @@ npm run dev
 
 This will start Vite dev server on `http://localhost:8080` with hot module replacement.
 
-### Starting MCP Servers
+### Starting the MCP Server
 
-Start the MCP server (Streamable HTTP):
-
+Start with SSE transport (default):
 ```bash
-python mcp_server.py
+python mcp_server.py --port 8001
 ```
 
-Start the SSE Legacy server:
-
-```bash  
-python sse_server.py
+Start with HTTP transport:
+```bash
+python mcp_server.py --transport http --port 8001
 ```
 
-Both servers include CORS configuration for local development.
+With auto-reload for development:
+```bash
+python mcp_server.py --transport http --port 8001 --reload
+```
+
+The server includes CORS configuration for local development.
 
 ## Build
 
@@ -87,10 +92,19 @@ The build process automatically creates optimized assets in the `dist/` director
 3. Start chatting - the interface supports markdown and LaTeX math expressions
 
 ### MCP Server Integration
-1. Configure MCP server URL in the sidebar (e.g., `http://localhost:8001/mcp`)
-2. Select transport protocol (Auto-detect, Streamable HTTP, or SSE Legacy)
-3. The interface will automatically connect and load available tools
-4. Use tools in your prompts - they'll appear in the model's function list
+1. Start the MCP server: `python mcp_server.py --port 8001`
+2. Configure MCP server URL in the sidebar:
+   - For SSE: `http://localhost:8001/sse` 
+   - For HTTP: `http://localhost:8001/mcp`
+3. Select transport protocol (Auto-detect, Streamable HTTP, or SSE Legacy)
+4. The interface will automatically connect and load available tools
+5. Use tools in your prompts - they'll appear in the model's function list
+
+**MCP Server Features:**
+- Complementary math operations (multiply, divide)
+- Flexible transport selection via CLI
+- Better error handling and logging
+- Development auto-reload support
 
 ### Mathematical Expressions
 The interface supports LaTeX math rendering:
@@ -125,10 +139,10 @@ src/
 ├── utils/                      # Utilities and clients
 │   ├── apiClient.js           # OpenRouter API client
 │   ├── mcpClient.js           # MCP client with dual transport
+│   ├── httpClient.js          # Common HTTP utilities
 │   ├── mathProcessor.js       # MathJax utilities
 │   └── constants.js           # Application constants
-├── mcp_server.py              # FastMCP server (Streamable HTTP)
-└── sse_server.py              # FastMCP server (SSE Legacy)
+└── mcp_server.py             # MCP server with dual transport support
 ```
 
 ## Dependencies
@@ -149,8 +163,33 @@ src/
 - **Component Library Design** - Can be embedded in other React applications
 - **Custom Hooks Pattern** - Modular state management without external libraries  
 - **Dual Transport MCP** - Supports both modern and legacy MCP protocols
+- **Dual Transport Architecture** - Single server supports both SSE and HTTP transports
 - **Zero Config Math** - MathJax integration with automatic formula detection
 - **CORS Enabled** - All servers configured for local development
 - **Tool Execution Logging** - Comprehensive console logging for debugging
+- **Development Optimized** - Auto-reload, rich CLI, and comprehensive error handling
 
 The interface is designed as a reusable component with a comprehensive props API for embedding in larger applications while also functioning as a standalone chat interface.
+
+## Server Usage Examples
+
+The MCP server supports both transport protocols with flexible configuration:
+
+**Basic Usage:**
+```bash
+# Default SSE transport on port 8000
+python mcp_server.py
+
+# HTTP transport on port 8001  
+python mcp_server.py --transport http --port 8001
+
+# Development with auto-reload
+python mcp_server.py --transport http --port 8001 --reload
+```
+
+**Features:**
+- ✅ Single server with dual transport support
+- ✅ Complementary math operations (multiply, divide)
+- ✅ Rich CLI interface with help
+- ✅ Better error handling and logging
+- ✅ Development auto-reload support

@@ -312,7 +312,7 @@ export class MCPClient {
 
     console.log(`📤 Sending notification ${method} via Streamable HTTP`);
 
-    const headers = HTTPClient.buildMCPHeaders(this.sessionId, method);
+    const headers = HTTPClient.buildMCPHeaders(this.sessionId, method, 'application/json, text/event-stream');
 
     await HTTPClient.post(this.serverUrl, notification, headers);
 
