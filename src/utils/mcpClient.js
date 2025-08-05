@@ -4,6 +4,8 @@
  * Based on official MCP specification and TypeScript SDK patterns
  */
 
+import { HTTPClient } from './httpClient.js';
+
 export class MCPClient {
   constructor(serverUrl, transport = 'auto') {
     this.serverUrl = serverUrl;
@@ -41,14 +43,11 @@ export class MCPClient {
         params: {}
       };
       
-      const response = await fetch(this.serverUrl, {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Accept': 'application/json, text/event-stream'
-        },
-        body: JSON.stringify(testMessage)
-      });
+      const response = await HTTPClient.post(
+        this.serverUrl,
+        testMessage,
+        { 'Accept': 'application/json, text/event-stream' }
+      );
       
       if (response.ok) {
         console.log('✅ Streamable HTTP transport detected');
@@ -60,10 +59,10 @@ export class MCPClient {
 
     // Try SSE legacy transport
     try {
-      const response = await fetch(this.serverUrl, {
-        method: 'GET',
-        headers: { 'Accept': 'text/event-stream' }
-      });
+      const response = await HTTPClient.get(
+        this.serverUrl,
+        { 'Accept': 'text/event-stream' }
+      );
       
       if (response.ok && response.headers.get('content-type')?.includes('text/event-stream')) {
         console.log('✅ SSE Legacy transport detected');
@@ -219,26 +218,17 @@ export class MCPClient {
     // Set up pending request BEFORE sending to avoid race condition
     const responsePromise = this.waitForSSEResponse(message.id);
 
-    // Send via POST to message endpoint
-    const response = await fetch(this.messageEndpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        ...(this.sessionId && method !== 'initialize' && {
-          'X-Session-ID': this.sessionId,
-          'Session-ID': this.sessionId,
-          'MCP-Session-ID': this.sessionId
-        })
-      },
-      body: JSON.stringify(message),
-      mode: 'cors'
-    });
-
-    if (!response.ok) {
+    try {
+      // Send via POST to message endpoint
+      await HTTPClient.post(
+        this.messageEndpoint,
+        message,
+        HTTPClient.buildMCPHeaders(this.sessionId, method)
+      );
+    } catch (error) {
       // Clean up pending request on error
       this.pendingRequests.delete(message.id);
-      throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+      throw error;
     }
 
     // Wait for SSE response
@@ -262,24 +252,11 @@ export class MCPClient {
     console.log(`📤 Sending notification ${method} via SSE Legacy`);
 
     // Send via POST to message endpoint
-    const response = await fetch(this.messageEndpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        ...(this.sessionId && {
-          'X-Session-ID': this.sessionId,
-          'Session-ID': this.sessionId,
-          'MCP-Session-ID': this.sessionId
-        })
-      },
-      body: JSON.stringify(notification),
-      mode: 'cors'
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${await response.text()}`);
-    }
+    await HTTPClient.post(
+      this.messageEndpoint,
+      notification,
+      HTTPClient.buildMCPHeaders(this.sessionId, method)
+    );
 
     // Notifications don't expect responses
     return { success: true };
@@ -298,35 +275,18 @@ export class MCPClient {
 
     console.log(`📤 Sending ${method} via Streamable HTTP`);
 
-    const headers = {
-      'Content-Type': 'application/json',
-      'Accept': 'application/json, text/event-stream',
-    };
+    const headers = HTTPClient.buildMCPHeaders(
+      this.sessionId, 
+      method, 
+      'application/json, text/event-stream'
+    );
 
-    // Add session ID to subsequent requests (if provided by server)
+    // Log session ID usage
     if (this.sessionId && method !== 'initialize') {
-      headers['X-Session-ID'] = this.sessionId;
-      headers['Session-ID'] = this.sessionId;
-      headers['MCP-Session-ID'] = this.sessionId;
       console.log(`📋 Using session ID: ${this.sessionId}`);
     }
 
-    let response;
-    try {
-      response = await fetch(this.serverUrl, {
-        method: 'POST',
-        headers: headers,
-        body: JSON.stringify(message),
-        mode: 'cors'
-      });
-    } catch (networkError) {
-      console.error('🌐 Network error:', networkError);
-      throw new Error(`Network error: ${networkError.message}. Make sure the server is running and CORS is configured.`);
-    }
-
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${await response.text()}`);
-    }
+    const response = await HTTPClient.post(this.serverUrl, message, headers);
 
     const contentType = response.headers.get('content-type') || '';
     console.log(`📋 Response content-type: ${contentType}`);
@@ -352,34 +312,9 @@ export class MCPClient {
 
     console.log(`📤 Sending notification ${method} via Streamable HTTP`);
 
-    const headers = {
-      'Content-Type': 'application/json',
-      'Accept': 'application/json',
-    };
+    const headers = HTTPClient.buildMCPHeaders(this.sessionId, method);
 
-    // Add session ID to subsequent requests (if provided by server)
-    if (this.sessionId) {
-      headers['X-Session-ID'] = this.sessionId;
-      headers['Session-ID'] = this.sessionId;
-      headers['MCP-Session-ID'] = this.sessionId;
-    }
-
-    let response;
-    try {
-      response = await fetch(this.serverUrl, {
-        method: 'POST',
-        headers: headers,
-        body: JSON.stringify(notification),
-        mode: 'cors'
-      });
-    } catch (networkError) {
-      console.error('🌐 Network error:', networkError);
-      throw new Error(`Network error: ${networkError.message}. Make sure the server is running and CORS is configured.`);
-    }
-
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${await response.text()}`);
-    }
+    await HTTPClient.post(this.serverUrl, notification, headers);
 
     // Notifications don't expect responses
     return { success: true };
@@ -389,34 +324,7 @@ export class MCPClient {
    * Handle Server-Sent Events response
    */
   async handleSSEResponse(response) {
-    const text = await response.text();
-    console.log('📡 SSE response:', text);
-
-    // Parse SSE format - look for data lines
-    const lines = text.split('\n');
-    const messages = [];
-
-    for (const line of lines) {
-      if (line.startsWith('data: ')) {
-        try {
-          const jsonData = line.substring(6).trim();
-          if (jsonData && jsonData !== '[DONE]') {
-            const message = JSON.parse(jsonData);
-            messages.push(message);
-          }
-        } catch (e) {
-          console.warn('Failed to parse SSE data line:', line, e);
-        }
-      }
-    }
-
-    // Return the first valid message (most common case)
-    if (messages.length > 0) {
-      console.log('✅ Parsed SSE messages:', messages);
-      return messages[0];
-    }
-
-    throw new Error('No valid JSON messages found in SSE response');
+    return await HTTPClient.parseSSEResponse(response);
   }
 
   /**
