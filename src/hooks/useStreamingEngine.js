@@ -277,7 +277,8 @@ const useStreamingEngine = (apiClient, currentModel, tools, toolChoice, parallel
     registerStreamingCallbacks,
     continueConversationWithTools,
     handleToolCallsInResponse,
-    fallbackToNonStreaming
+    fallbackToNonStreaming,
+    streamingCallbacksRef
   };
 };
 

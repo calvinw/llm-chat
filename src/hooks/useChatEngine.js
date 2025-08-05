@@ -30,7 +30,8 @@ const useChatEngine = (apiKey, defaultModel, systemPrompt = DEFAULT_SYSTEM_PROMP
     setIsStreaming,
     registerStreamingCallbacks,
     handleToolCallsInResponse,
-    fallbackToNonStreaming
+    fallbackToNonStreaming,
+    streamingCallbacksRef
   } = useStreamingEngine(apiClient, currentModel, tools, toolChoice, parallelToolCalls, executeTools, onToolCall);
 
   // Generate unique message ID
@@ -78,9 +79,9 @@ const useChatEngine = (apiKey, defaultModel, systemPrompt = DEFAULT_SYSTEM_PROMP
     const aiMsg = addMessage(MESSAGE_ROLES.ASSISTANT, '');
 
     try {
-      // Prepare messages for API (include system message and conversation history)
+      // Prepare messages for API (include system message if provided and conversation history)
       const apiMessages = [
-        { role: MESSAGE_ROLES.SYSTEM, content: systemPrompt },
+        ...(systemPrompt ? [{ role: MESSAGE_ROLES.SYSTEM, content: systemPrompt }] : []),
         ...messages
           .filter(msg => msg.role !== MESSAGE_ROLES.TOOL_EXECUTION) // Filter out display-only tool execution messages
           .map(msg => {
@@ -102,9 +103,12 @@ const useChatEngine = (apiKey, defaultModel, systemPrompt = DEFAULT_SYSTEM_PROMP
         tools,
         toolChoice,
         parallelToolCalls,
-        // onChunk callback
+        // onChunk callback - forward to streaming engine callbacks
         (accumulatedContent) => {
-          // This is handled by streaming engine callbacks
+          // Forward to streaming engine for UI updates
+          if (streamingCallbacksRef && streamingCallbacksRef.current && streamingCallbacksRef.current.onChunk) {
+            streamingCallbacksRef.current.onChunk(accumulatedContent);
+          }
         },
         // onToolCall callback - handle tool calls in streaming
         async (toolCalls, finalContent = '') => {

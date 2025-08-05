@@ -2,7 +2,7 @@
  * Application constants and configuration
  */
 
-export const DEFAULT_SYSTEM_PROMPT = "You are a helpful AI assistant. Please use dollar signs ($...$) and double dollar signs ($$...$$) for MathJax, and backslash any regular dollar signs (\\$) that are not for math.";
+export const DEFAULT_SYSTEM_PROMPT = "";
 
 export const MESSAGE_ROLES = {
   USER: 'user',
