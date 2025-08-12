@@ -1,4 +1,4 @@
-import React from 'react';
+import { useMemo, useCallback } from 'https://esm.sh/preact@10.19.3/hooks';
 /**
  * Custom hook for rendering markdown content with math support
  * Handles both markdown and plain text display modes
@@ -12,12 +12,12 @@ import {
 
 const useMarkdownRenderer = (displayMode = 'markdown') => {
   // Create markdown renderer instance (memoized)
-  const markdownRenderer = React.useMemo(() => {
+  const markdownRenderer = useMemo(() => {
     return createMarkdownRenderer();
   }, []);
 
   // Memoized function to render message content
-  const renderMessage = React.useCallback((content, role = 'assistant') => {
+  const renderMessage = useCallback((content, role = 'assistant') => {
     if (!content) return '';
 
     if (displayMode === 'text') {

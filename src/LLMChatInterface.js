@@ -1,12 +1,13 @@
-import React from 'react';
+import { html } from './utils/html.js';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'https://esm.sh/preact@10.19.3/hooks';
 import useChatEngine from './hooks/useChatEngine.js';
 import useModelManager from './hooks/useModelManager.js';
 import useMarkdownRenderer from './hooks/useMarkdownRenderer.js';
 import useMCPManager from './hooks/useMCPManager.js';
-import ErrorDisplay from './components/ErrorDisplay.jsx';
-import MessagesContainer from './components/MessagesContainer.jsx';
-import MessageInput from './components/MessageInput.jsx';
-import Sidebar from './components/Sidebar.jsx';
+import ErrorDisplay from './components/ErrorDisplay.js';
+import MessagesContainer from './components/MessagesContainer.js';
+import MessageInput from './components/MessageInput.js';
+import Sidebar from './components/Sidebar.js';
 
 const LLMChatInterface = ({
   apiKey: propApiKey = null,
@@ -29,11 +30,11 @@ const LLMChatInterface = ({
   onError = null,
   theme = "light"
 }) => {
-  const [apiKey, setApiKey] = React.useState(propApiKey || localStorage.getItem('openrouter-api-key') || '');
-  const [displayMode, setDisplayMode] = React.useState('markdown');
-  const [error, setError] = React.useState(null);
-  const [sidebarVisible, setSidebarVisible] = React.useState(true);
-  const messagesEndRef = React.useRef(null);
+  const [apiKey, setApiKey] = useState(propApiKey || localStorage.getItem('openrouter-api-key') || '');
+  const [displayMode, setDisplayMode] = useState('markdown');
+  const [error, setError] = useState(null);
+  const [sidebarVisible, setSidebarVisible] = useState(true);
+  const messagesEndRef = useRef(null);
 
   // MCP Manager for remote tool servers
   const {
@@ -48,14 +49,14 @@ const LLMChatInterface = ({
   } = useMCPManager();
 
   // Save API key to localStorage (only if not provided as prop)
-  React.useEffect(() => {
+  useEffect(() => {
     if (apiKey && !propApiKey) {
       localStorage.setItem('openrouter-api-key', apiKey);
     }
   }, [apiKey, propApiKey]);
 
   // Merge local tools with MCP tools
-  const mergedTools = React.useMemo(() => {
+  const mergedTools = useMemo(() => {
     if (!enableTools) return null;
     
     const localTools = tools || [];
@@ -66,7 +67,7 @@ const LLMChatInterface = ({
   }, [enableTools, tools, mcpTools]);
 
   // Merge local tool handlers with MCP tool handlers
-  const mergedToolHandlers = React.useMemo(() => {
+  const mergedToolHandlers = useMemo(() => {
     if (!enableTools) return null;
     
     const localHandlers = toolHandlers || {};
@@ -77,7 +78,7 @@ const LLMChatInterface = ({
   }, [enableTools, toolHandlers, mcpToolHandlers]);
 
   // Handle tool calling callback with user notification
-  const handleToolCall = React.useCallback((toolName, args, result, error) => {
+  const handleToolCall = useCallback((toolName, args, result, error) => {
     if (onToolCall) {
       onToolCall(toolName, args, result, error);
     }
@@ -111,17 +112,17 @@ const LLMChatInterface = ({
   const { renderMessage } = useMarkdownRenderer(displayMode);
 
   // Auto-scroll to bottom when messages change
-  const scrollToBottom = React.useCallback(() => {
+  const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, []);
 
   // Auto-scroll effect - trigger after messages change
-  React.useEffect(() => {
+  useEffect(() => {
     scrollToBottom();
   }, [messages, scrollToBottom]);
 
   // MathJax rendering effect - only trigger when streaming stops
-  React.useEffect(() => {
+  useEffect(() => {
     if (displayMode === 'markdown' && !isStreaming && window.MathJax && window.MathJax.typesetPromise) {
       // Small delay to ensure DOM is updated
       const timer = setTimeout(() => {
@@ -169,62 +170,62 @@ const LLMChatInterface = ({
     setSidebarVisible(!sidebarVisible);
   };
 
-  return (
-    <div className={`llm-chat-container ${className} ${theme === 'dark' ? 'llm-chat-dark' : 'llm-chat-light'} flex h-full`} style={{ height }}>
-      {/* Sidebar */}
-      <Sidebar
-        isVisible={sidebarVisible}
-        onToggle={toggleSidebar}
-        onNewChat={handleNewChat}
-        apiKey={apiKey}
-        onApiKeyChange={setApiKey}
-        displayMode={displayMode}
-        onDisplayModeChange={setDisplayMode}
-        currentModel={currentModel}
-        setCurrentModel={setCurrentModel}
-        models={models}
-        modelsLoading={modelsLoading}
-        isLoading={isLoading || isStreaming}
-        mcpServerUrl={mcpServerUrl}
-        onMcpServerUrlChange={setMcpServerUrl}
-        mcpTransport={mcpTransport}
-        onMcpTransportChange={setMcpTransport}
-        mcpConnectionStatus={mcpConnectionStatus}
+  return html`
+    <div className=${`llm-chat-container ${className} ${theme === 'dark' ? 'llm-chat-dark' : 'llm-chat-light'} relative flex h-full`} style="height: ${height}">
+      <!-- Sidebar -->
+      <${Sidebar}
+        isVisible=${sidebarVisible}
+        onToggle=${toggleSidebar}
+        onNewChat=${handleNewChat}
+        apiKey=${apiKey}
+        onApiKeyChange=${setApiKey}
+        displayMode=${displayMode}
+        onDisplayModeChange=${setDisplayMode}
+        currentModel=${currentModel}
+        setCurrentModel=${setCurrentModel}
+        models=${models}
+        modelsLoading=${modelsLoading}
+        isLoading=${isLoading || isStreaming}
+        mcpServerUrl=${mcpServerUrl}
+        onMcpServerUrlChange=${setMcpServerUrl}
+        mcpTransport=${mcpTransport}
+        onMcpTransportChange=${setMcpTransport}
+        mcpConnectionStatus=${mcpConnectionStatus}
       />
       
-      {/* Main Chat Area */}
-      <div className={`flex-1 flex flex-col transition-all duration-300 h-full ${sidebarVisible ? 'lg:ml-[260px] ml-0' : 'lg:ml-[60px] ml-0'}`}>
-        {/* Error Message Display Area */}
-        <ErrorDisplay error={error} />
+      <!-- Main Chat Area -->
+      <div className=${`flex-1 flex flex-col transition-all duration-300 h-full ${sidebarVisible ? 'lg:ml-[260px] ml-0' : 'lg:ml-[60px] ml-0'}`}>
+        <!-- Error Message Display Area -->
+        <${ErrorDisplay} error=${error} />
         
-        {/* Messages Display Area - takes remaining space */}
-        <MessagesContainer
-          messages={messages}
-          isLoading={isLoading}
-          isStreaming={isStreaming}
-          renderMessage={renderMessage}
-          messagesEndRef={messagesEndRef}
-          registerStreamingCallbacks={registerStreamingCallbacks}
-          displayMode={displayMode}
-          tools={mergedTools}
+        <!-- Messages Display Area - takes remaining space -->
+        <${MessagesContainer}
+          messages=${messages}
+          isLoading=${isLoading}
+          isStreaming=${isStreaming}
+          renderMessage=${renderMessage}
+          messagesEndRef=${messagesEndRef}
+          registerStreamingCallbacks=${registerStreamingCallbacks}
+          displayMode=${displayMode}
+          tools=${mergedTools}
         />
         
-        {/* Welcome message when no messages */}
-        {messages.length === 0 && (
+        <!-- Welcome message when no messages -->
+        ${messages.length === 0 && html`
           <div className="flex items-center justify-center p-8">
             <h1 className="text-2xl font-semibold text-gray-800">What's on your mind today?</h1>
           </div>
-        )}
+        `}
         
-        {/* Message Input Area - anchored to bottom */}
-        <MessageInput
-          onSendMessage={handleSendMessage}
-          isLoading={isLoading || isStreaming}
-          apiKey={apiKey}
+        <!-- Message Input Area - anchored to bottom -->
+        <${MessageInput}
+          onSendMessage=${handleSendMessage}
+          isLoading=${isLoading || isStreaming}
+          apiKey=${apiKey}
         />
       </div>
     </div>
-  );
+  `;
 };
 
 export default LLMChatInterface;

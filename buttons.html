@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Buttons + LLM Chat</title>
+
+  <!-- Markdown-it for chat rendering -->
+  <script src="https://cdn.jsdelivr.net/npm/markdown-it@13.0.1/dist/markdown-it.min.js"></script>
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- MathJax (used by chat when rendering math) -->
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['$', '$'], ['\\(', '\\)']],
+        displayMath: [['$$', '$$'], ['\\[', '\\]']],
+        processEscapes: true,
+        processEnvironments: true,
+        packages: {'[+]': ['ams', 'newcommand', 'configmacros']}
+      },
+      options: { skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre'] }
+    };
+  </script>
+  <script id="MathJax-script" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
+
+  <style>
+    body { margin: 0; padding: 0; }
+  </style>
+</head>
+<body class="h-screen overflow-hidden bg-gray-50">
+  <div id="root" class="h-full"></div>
+
+  <script type="module">
+    import { render } from 'https://esm.sh/preact@10.19.3';
+    import { useState, useMemo, useRef, useEffect } from 'https://esm.sh/preact@10.19.3/hooks';
+    import { html } from './src/utils/html.js';
+    import LLMChatInterface from './src/LLMChatInterface.js';
+
+    // Small visual component for a single button with state
+    const ToggleButton = ({ id, label, isOn, onToggle }) => html`
+      <button
+        className=${`px-4 py-3 rounded-lg font-semibold border w-full text-left transition-colors ${
+          isOn ? 'bg-green-600 text-white border-green-700' : 'bg-white text-gray-800 border-gray-300 hover:bg-gray-100'
+        }`}
+        onClick=${() => onToggle(id)}
+        title=${`Click to toggle ${label}`}
+      >
+        ${label}: ${isOn ? 'ON' : 'OFF'}
+      </button>
+    `;
+
+    // Left pane showing three buttons and reflecting shared state
+    const ButtonsPanel = ({ state, setState }) => {
+      const onToggle = (id) => {
+        setState(prev => ({ ...prev, [id]: !prev[id] }));
+      };
+
+      return html`
+        <div className="p-4 space-y-3">
+          <h2 className="text-lg font-semibold text-gray-800">Control Buttons</h2>
+          <${ToggleButton} id="button1" label="Button 1" isOn=${state.button1} onToggle=${onToggle} />
+          <${ToggleButton} id="button2" label="Button 2" isOn=${state.button2} onToggle=${onToggle} />
+          <${ToggleButton} id="button3" label="Button 3" isOn=${state.button3} onToggle=${onToggle} />
+
+          <div className="mt-4">
+            <div className="text-sm text-gray-600 mb-1">Current state:</div>
+            <pre className="text-xs bg-gray-100 p-2 rounded border border-gray-200">${JSON.stringify(state, null, 2)}</pre>
+          </div>
+        </div>
+      `;
+    };
+
+    function App() {
+      // Split pane layout state
+      const containerRef = useRef(null);
+      const MIN_LEFT = 220;   // px
+      const MIN_RIGHT = 360;  // px
+      const [leftWidth, setLeftWidth] = useState(() => {
+        try {
+          const saved = localStorage.getItem('buttons-left-width');
+          if (saved) return Math.max(MIN_LEFT, parseInt(saved, 10));
+        } catch {}
+        return Math.max(MIN_LEFT, Math.floor((typeof window !== 'undefined' ? window.innerWidth : 1000) * 0.4));
+      });
+
+      // Persist width and clamp on mount/resize
+      useEffect(() => {
+        const clampToContainer = () => {
+          const el = containerRef.current;
+          if (!el) return;
+          const total = el.clientWidth || (typeof window !== 'undefined' ? window.innerWidth : 1200);
+          setLeftWidth(prev => {
+            const clamped = Math.min(Math.max(prev, MIN_LEFT), total - MIN_RIGHT);
+            try { localStorage.setItem('buttons-left-width', String(clamped)); } catch {}
+            return clamped;
+          });
+        };
+        clampToContainer();
+        const onResize = () => clampToContainer();
+        window.addEventListener('resize', onResize);
+        return () => window.removeEventListener('resize', onResize);
+      }, []);
+
+      // Drag to resize
+      const startDrag = (e) => {
+        e.preventDefault();
+        const startX = (e.touches && e.touches[0]?.clientX) ?? e.clientX;
+        const startWidth = leftWidth;
+        const el = containerRef.current;
+        const total = el ? el.clientWidth : (typeof window !== 'undefined' ? window.innerWidth : 1200);
+
+        const onMove = (ev) => {
+          const clientX = (ev.touches && ev.touches[0]?.clientX) ?? ev.clientX;
+          let next = startWidth + (clientX - startX);
+          next = Math.max(MIN_LEFT, Math.min(next, total - MIN_RIGHT));
+          setLeftWidth(next);
+        };
+        const onUp = () => {
+          document.removeEventListener('mousemove', onMove);
+          document.removeEventListener('mouseup', onUp);
+          document.removeEventListener('touchmove', onMove);
+          document.removeEventListener('touchend', onUp);
+          try { localStorage.setItem('buttons-left-width', String(leftWidth)); } catch {}
+          if (el) el.style.userSelect = '';
+          document.body.style.cursor = '';
+        };
+
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+        document.addEventListener('touchmove', onMove, { passive: false });
+        document.addEventListener('touchend', onUp);
+        if (el) el.style.userSelect = 'none';
+        document.body.style.cursor = 'col-resize';
+      };
+
+      const resetSplit = () => {
+        const el = containerRef.current;
+        const total = el ? el.clientWidth : (typeof window !== 'undefined' ? window.innerWidth : 1200);
+        const next = Math.max(MIN_LEFT, Math.floor(total * 0.4));
+        setLeftWidth(next);
+        try { localStorage.setItem('buttons-left-width', String(next)); } catch {}
+      };
+      // Shared state for three buttons
+      const [buttonsState, setButtonsState] = useState({
+        button1: false,
+        button2: false,
+        button3: false
+      });
+
+      // Local tools definitions
+      const tools = useMemo(() => ([
+        {
+          type: 'function',
+          function: {
+            name: 'get_buttons_state',
+            description: 'Get the current ON/OFF state of all buttons',
+            parameters: { type: 'object', properties: {}, required: [] }
+          }
+        },
+        {
+          type: 'function',
+          function: {
+            name: 'set_button_state',
+            description: 'Set a specific button state to on/off or toggle it',
+            parameters: {
+              type: 'object',
+              properties: {
+                id: { type: 'string', description: 'Button identifier', enum: ['button1','button2','button3'] },
+                action: { type: 'string', description: 'Desired action', enum: ['on','off','toggle'] }
+              },
+              required: ['id','action']
+            }
+          }
+        },
+        {
+          type: 'function',
+          function: {
+            name: 'set_buttons_state',
+            description: 'Set multiple button states at once. Prefer values as an object map; arrays of {id, value} also accepted.',
+            parameters: {
+              type: 'object',
+              properties: {
+                values: {
+                  oneOf: [
+                    {
+                      type: 'object',
+                      description: 'Partial map of button -> on/off',
+                      properties: {
+                        button1: { type: 'boolean' },
+                        button2: { type: 'boolean' },
+                        button3: { type: 'boolean' }
+                      },
+                      additionalProperties: false
+                    },
+                    {
+                      type: 'array',
+                      description: 'Array of updates',
+                      items: {
+                        type: 'object',
+                        properties: {
+                          id: { type: 'string', enum: ['button1','button2','button3'] },
+                          value: { type: 'boolean' }
+                        },
+                        required: ['id','value']
+                      }
+                    }
+                  ]
+                }
+              },
+              required: ['values']
+            }
+          }
+        }
+      ]), []);
+
+      // Tool implementations, capturing setButtonsState in closure so UI updates immediately
+      const toolHandlers = useMemo(() => {
+        const coerceBool = (v) => {
+          if (typeof v === 'boolean') return v;
+          if (typeof v === 'number') return v !== 0;
+          if (typeof v === 'string') {
+            const s = v.toLowerCase().trim();
+            if (['on','true','1','yes'].includes(s)) return true;
+            if (['off','false','0','no'].includes(s)) return false;
+          }
+          return Boolean(v);
+        };
+
+        const normalizeBulk = (input) => {
+          // Accept object map, array of {id,value}, or fall back to top-level fields
+          if (Array.isArray(input)) {
+            const out = {};
+            input.forEach(item => {
+              const id = item?.id || item?.button || item?.name;
+              if (['button1','button2','button3'].includes(id)) {
+                out[id] = coerceBool(item.value ?? item.state ?? item.on ?? item.enabled);
+              }
+            });
+            return out;
+          }
+          if (input && typeof input === 'object') {
+            const out = {};
+            ['button1','button2','button3'].forEach(k => {
+              if (k in input) out[k] = coerceBool(input[k]);
+            });
+            return out;
+          }
+          return {};
+        };
+
+        return {
+          get_buttons_state: () => ({ state: buttonsState }),
+
+          set_button_state: ({ id, action }) => {
+            let newStateRef = null;
+            setButtonsState(prev => {
+              const next = { ...prev };
+              if (['button1','button2','button3'].includes(id)) {
+                if (action === 'on') next[id] = true;
+                else if (action === 'off') next[id] = false;
+                else if (action === 'toggle') next[id] = !next[id];
+              }
+              newStateRef = next;
+              return next;
+            });
+            const value = newStateRef?.[id];
+            return { updated: { id, value }, state: newStateRef ?? buttonsState };
+          },
+
+          set_buttons_state: ({ values = {} }) => {
+            const updates = normalizeBulk(values);
+            let newStateRef = null;
+            setButtonsState(prev => {
+              newStateRef = { ...prev, ...updates };
+              return newStateRef;
+            });
+            return { updated: updates, state: newStateRef ?? { ...buttonsState, ...updates } };
+          }
+        };
+      }, [buttonsState]);
+
+      // Optional: encourage the model to use tools when asked about the UI
+      const systemPrompt = `You are assisting with a web UI that has three buttons: button1, button2, button3. Use the provided tools to read or change button states. Prefer explicit actions like set_button_state or set_buttons_state when the user asks to toggle or change buttons.`;
+
+      const handleToolCall = (name, args, result, error) => {
+        if (error) console.log(`❌ Tool ${name} error:`, error.message);
+        else console.log(`✅ Tool ${name} result:`, result);
+      };
+
+      return html`
+        <div ref=${containerRef} className="h-full w-full flex">
+          <!-- Left: Buttons Panel -->
+          <div
+            className="border-r border-gray-200 bg-white overflow-auto"
+            style=${{ width: `${leftWidth}px`, minWidth: `${MIN_LEFT}px` }}
+          >
+            <${ButtonsPanel} state=${buttonsState} setState=${setButtonsState} />
+          </div>
+
+          <!-- Resizer -->
+          <div
+            role="separator"
+            aria-orientation="vertical"
+            title="Drag to resize (double-click to reset)"
+            onMouseDown=${startDrag}
+            onTouchStart=${startDrag}
+            onDblClick=${resetSplit}
+            className="w-1.5 bg-gray-200 hover:bg-gray-300 active:bg-gray-300 cursor-col-resize"
+          />
+
+          <!-- Right: LLM Chat -->
+          <div className="h-full flex-1 min-w-0" style=${{ minWidth: `${MIN_RIGHT}px` }}>
+            <${LLMChatInterface}
+              tools=${tools}
+              toolHandlers=${toolHandlers}
+              enableTools=${true}
+              toolChoice="auto"
+              parallelToolCalls=${true}
+              onToolCall=${handleToolCall}
+              systemPrompt=${systemPrompt}
+              defaultModel="openai/gpt-4o-mini"
+              height="100vh"
+            />
+          </div>
+        </div>
+      `;
+    }
+
+    render(html`<${App} />`, document.getElementById('root'));
+  </script>
+</body>
+</html>

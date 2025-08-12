@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ChatInterface with Vite</title>
+    <title>LLM Chat Interface - Preact + htm</title>
     
     <!-- Markdown-it -->
     <script src="https://cdn.jsdelivr.net/npm/markdown-it@13.0.1/dist/markdown-it.min.js"></script>
@@ -30,8 +30,7 @@
     <!-- Load MathJax library -->
     <script id="MathJax-script" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
     
-    <!-- Component Styles -->
-    <link href="src/styles/chat.css" rel="stylesheet">
+    <!-- All styles handled by Tailwind CSS -->
     
     <style>
         body {
@@ -43,6 +42,6 @@
 <body class="overflow-hidden h-screen bg-gray-50">
     <div id="root" style="height: 100vh;"></div>
     
-    <script type="module" src="/src/main.jsx"></script>
+    <script type="module" src="/src/main.js"></script>
 </body>
 </html>

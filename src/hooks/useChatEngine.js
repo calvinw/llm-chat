@@ -1,4 +1,4 @@
-import React from 'react';
+import { useState, useMemo } from 'https://esm.sh/preact@10.19.3/hooks';
 /**
  * Chat engine hook with tool calling support
  * Manages messages, API communication, and tool execution
@@ -11,13 +11,13 @@ import useStreamingEngine from './useStreamingEngine.js';
 
 const useChatEngine = (apiKey, defaultModel, systemPrompt = DEFAULT_SYSTEM_PROMPT, tools = null, toolHandlers = null, toolChoice = "auto", parallelToolCalls = true, onToolCall = null) => {
   // State management
-  const [messages, setMessages] = React.useState([]);
-  const [isLoading, setIsLoading] = React.useState(false);
-  const [currentModel, setCurrentModel] = React.useState(defaultModel);
-  const [error, setError] = React.useState(null);
+  const [messages, setMessages] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [currentModel, setCurrentModel] = useState(defaultModel);
+  const [error, setError] = useState(null);
 
   // API client instance
-  const apiClient = React.useMemo(() => {
+  const apiClient = useMemo(() => {
     return apiKey ? new OpenRouterClient(apiKey) : null;
   }, [apiKey]);
 

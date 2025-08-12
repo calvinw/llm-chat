@@ -1,6 +1,6 @@
-import React from 'react';
-import ReactDOM from 'react-dom/client';
-import LLMChatInterface from './LLMChatInterface.jsx';
+import { render } from 'https://esm.sh/preact@10.19.3';
+import { html } from './utils/html.js';
+import LLMChatInterface from './LLMChatInterface.js';
 
 function App() {
     // Tool logging function
@@ -66,21 +66,21 @@ function App() {
         console.log(`🚨 Error: ${error.message}`);
     };
 
-    return (
-        <LLMChatInterface
-            tools={tools}
-            toolHandlers={toolHandlers}
-            enableTools={true}
+    return html`
+        <${LLMChatInterface}
+            tools=${tools}
+            toolHandlers=${toolHandlers}
+            enableTools=${true}
             toolChoice="auto"
-            parallelToolCalls={true}
-            onToolCall={handleToolCall}
-            onMessage={handleMessage}
-            onError={handleError}
+            parallelToolCalls=${true}
+            onToolCall=${handleToolCall}
+            onMessage=${handleMessage}
+            onError=${handleError}
             systemPrompt=""
             defaultModel="openai/gpt-4o-mini"
             height="100vh"
         />
-    );
+    `;
 }
 
-ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+render(html`<${App} />`, document.getElementById('root'));

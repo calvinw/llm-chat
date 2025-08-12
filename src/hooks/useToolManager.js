@@ -1,4 +1,4 @@
-import React from 'react';
+import { useCallback } from 'https://esm.sh/preact@10.19.3/hooks';
 
 /**
  * Custom hook for managing tool execution
@@ -6,7 +6,7 @@ import React from 'react';
  */
 const useToolManager = (toolHandlers, onToolCall) => {
   
-  const executeTools = React.useCallback(async (toolCalls) => {
+  const executeTools = useCallback(async (toolCalls) => {
     if (!toolCalls || toolCalls.length === 0) {
       return [];
     }
@@ -80,7 +80,7 @@ const useToolManager = (toolHandlers, onToolCall) => {
     
   }, [toolHandlers, onToolCall]);
 
-  const validateTools = React.useCallback((tools) => {
+  const validateTools = useCallback((tools) => {
     if (!Array.isArray(tools)) {
       console.warn('Tools must be an array');
       return false;

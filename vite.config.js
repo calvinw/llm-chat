@@ -1,18 +1,9 @@
 import { defineConfig } from 'vite';
-import react from '@vitejs/plugin-react';
+import preact from '@preact/preset-vite';
 
 export default defineConfig({
-  plugins: [react()],
-  base: './',  // Use relative paths for GitHub Pages compatibility
+  plugins: [preact()],
   server: {
     port: 8080
-  },
-  build: {
-    assetsDir: 'assets',
-    rollupOptions: {
-      output: {
-        manualChunks: undefined
-      }
-    }
   }
 });

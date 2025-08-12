@@ -1,4 +1,4 @@
-import React from 'react';
+import { useState, useRef, useCallback } from 'https://esm.sh/preact@10.19.3/hooks';
 import { MESSAGE_ROLES } from '../utils/constants.js';
 
 /**
@@ -6,13 +6,13 @@ import { MESSAGE_ROLES } from '../utils/constants.js';
  * Extracted from useChatEngine to separate concerns
  */
 const useStreamingEngine = (apiClient, currentModel, tools, toolChoice, parallelToolCalls, executeTools, onToolCall) => {
-  const [isStreaming, setIsStreaming] = React.useState(false);
+  const [isStreaming, setIsStreaming] = useState(false);
   
   // Ref for streaming callbacks to access latest state
-  const streamingCallbacksRef = React.useRef({});
+  const streamingCallbacksRef = useRef({});
 
   // Register streaming callbacks (used by components for direct DOM manipulation)
-  const registerStreamingCallbacks = React.useCallback((callbacks) => {
+  const registerStreamingCallbacks = useCallback((callbacks) => {
     streamingCallbacksRef.current = callbacks;
   }, []);
 

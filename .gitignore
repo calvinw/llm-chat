@@ -46,3 +46,6 @@ allFiles.txt
 
 # API Keys and secrets
 setupkeys.sh
+
+# Crush agent cache
+.crush/

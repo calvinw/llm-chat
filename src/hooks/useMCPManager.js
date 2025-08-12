@@ -1,19 +1,19 @@
-import React from 'react';
+import { useState, useEffect } from 'https://esm.sh/preact@10.19.3/hooks';
 import { MCPClient } from '../utils/mcpClient.js';
 
 /**
  * Hook to manage MCP server connections and tools
  */
 const useMCPManager = (transport = 'auto') => {
-  const [mcpServerUrl, setMcpServerUrl] = React.useState('');
-  const [mcpTransport, setMcpTransport] = React.useState(transport);
-  const [mcpConnectionStatus, setMcpConnectionStatus] = React.useState(null);
-  const [mcpTools, setMcpTools] = React.useState([]);
-  const [mcpToolHandlers, setMcpToolHandlers] = React.useState({});
-  const [mcpClient, setMcpClient] = React.useState(null);
+  const [mcpServerUrl, setMcpServerUrl] = useState('');
+  const [mcpTransport, setMcpTransport] = useState(transport);
+  const [mcpConnectionStatus, setMcpConnectionStatus] = useState(null);
+  const [mcpTools, setMcpTools] = useState([]);
+  const [mcpToolHandlers, setMcpToolHandlers] = useState({});
+  const [mcpClient, setMcpClient] = useState(null);
 
   // Connect to MCP server when URL changes
-  React.useEffect(() => {
+  useEffect(() => {
     const connectToMCP = async () => {
       if (!mcpServerUrl || !mcpServerUrl.trim()) {
         // Clear MCP state when URL is empty
@@ -72,7 +72,7 @@ const useMCPManager = (transport = 'auto') => {
   }, [mcpServerUrl, mcpTransport]);
 
   // Cleanup on unmount
-  React.useEffect(() => {
+  useEffect(() => {
     return () => {
       if (mcpClient) {
         mcpClient.disconnect();

@@ -1,195 +1,257 @@
-# React LLM Chat Interface
+# LLM Chat Interface - Preact + htm
 
-A React-based chat interface component for Large Language Models using OpenRouter's API. Features streaming responses, tool calling support, MCP (Model Context Protocol) integration with dual transport support, markdown rendering with MathJax, and can be deployed with zero build steps or using Vite.
+A lightweight, zero-build LLM chat interface built with **Preact** and **htm** (Hyperscript Tagged Markup). Features streaming responses, tool calling, MCP integration, and math rendering. Deploys anywhere - GitHub Pages, Python server, or any static hosting.
 
-## Features
+## 🚀 Key Features
 
-- **Streaming responses** with real-time message updates
-- **MCP Integration** with dual transport support (Streamable HTTP & SSE Legacy)
-- **Tool calling support** with local and remote tools
-- **MathJax integration** for mathematical expressions with LaTeX rendering
-- **Markdown rendering** with syntax highlighting  
-- **Sidebar interface** with model selection and MCP server configuration
-- **Full-screen interface** optimized for chat
-- **Console tool logging** for debugging
-- **Dual deployment**: Zero build (Babel) or Vite build process
-- **Combined MCP Server** with unified math tools and flexible transport options
+- **🔧 Zero Build Required** - htm template literals work directly in browsers
+- **📦 Lightweight** - Preact (~3KB) instead of React (~40KB) 
+- **🏗️ No Compilation** - htm templates parsed at runtime, no JSX transformation
+- **📡 Streaming Responses** - Real-time message streaming with throttled updates
+- **🛠️ Tool Calling** - Parallel tool execution with local and remote tools
+- **📊 MCP Integration** - Model Context Protocol support for external tool servers
+- **🧮 Math Rendering** - MathJax support for LaTeX expressions ($x^2$ and $$equations$$)
+- **📱 Responsive Design** - Works on desktop and mobile
+- **🔥 Hot Reloading** - Vite development server for smooth development
+- **🌐 Deploy Anywhere** - Python server, GitHub Pages, any static hosting
 
-## Available Tools
+## 🏗️ Architecture
 
-### Local Tools
-- **local_add_numbers(a, b)** - Add two numbers together
+### Dual Development Modes
 
-### MCP Server Tools
-The MCP server includes complementary mathematical operations:
-- **multiply_numbers(a, b)** - Multiply two numbers together
-- **divide_numbers(a, b)** - Divide first number by second (with zero-division protection)
-
-#### Server Options
-- **SSE (default)**: `python mcp_server.py --port 8000` → `http://localhost:8000/sse`
-- **HTTP**: `python mcp_server.py --transport http --port 8000` → `http://localhost:8000/mcp`
-
-## MCP Transport Support
-
-The interface supports both MCP transport protocols:
-
-- **Streamable HTTP** - Modern transport using HTTP POST with streaming responses
-- **SSE Legacy** - Legacy transport using Server-Sent Events with message correlation
-- **Auto-detection** - Automatically detects which transport the server supports
-
-## Development
-
-### Starting the Chat Interface
-
-Start the development server:
-
+**Development Mode:**
 ```bash
-npm run dev
+npm run dev  # Vite dev server with hot reloading on port 8080
 ```
 
-This will start Vite dev server on `http://localhost:8080` with hot module replacement.
-
-### Starting the MCP Server
-
-Start with SSE transport (default):
+**Production/Static Deployment:**
 ```bash
-python mcp_server.py --port 8001
+python -m http.server 8080  # Or any static file server
 ```
 
-Start with HTTP transport:
-```bash
-python mcp_server.py --transport http --port 8001
-```
+### Component Architecture
 
-With auto-reload for development:
-```bash
-python mcp_server.py --transport http --port 8001 --reload
-```
-
-The server includes CORS configuration for local development.
-
-## Build
-
-Create a production build:
-
-```bash
-npm run build
-```
-
-Preview the production build:
-
-```bash
-npm run preview
-```
-
-The build process automatically creates optimized assets in the `dist/` directory with relative paths for deployment.
-
-## Usage
-
-### Basic Chat
-1. Enter your OpenRouter API key in the sidebar
-2. Select an AI model from the dropdown
-3. Start chatting - the interface supports markdown and LaTeX math expressions
-
-### MCP Server Integration
-1. Start the MCP server: `python mcp_server.py --port 8001`
-2. Configure MCP server URL in the sidebar:
-   - For SSE: `http://localhost:8001/sse` 
-   - For HTTP: `http://localhost:8001/mcp`
-3. Select transport protocol (Auto-detect, Streamable HTTP, or SSE Legacy)
-4. The interface will automatically connect and load available tools
-5. Use tools in your prompts - they'll appear in the model's function list
-
-**MCP Server Features:**
-- Complementary math operations (multiply, divide)
-- Flexible transport selection via CLI
-- Better error handling and logging
-- Development auto-reload support
-
-### Mathematical Expressions
-The interface supports LaTeX math rendering:
-- Inline math: `$x^2 + y^2 = z^2$`
-- Display math: `$$\int_{-\infty}^{\infty} e^{-x^2} dx = \sqrt{\pi}$$`
-
-## Configuration
-
-- API key is persisted in localStorage with automatic state synchronization
-- Default model: `openai/gpt-4o-mini`
-- MathJax supports `$...$` and `$$...$$` syntax with AMS extensions
-- Tools are executed in parallel when possible
-- MCP transport auto-detection with fallback support
-
-## Project Structure
+This is a **Preact component library** using htm template literals:
 
 ```
 src/
-├── main.jsx                    # App entry point with local tool setup
-├── LLMChatInterface.jsx        # Main chat component with state management
-├── hooks/                      # Custom React hooks
-│   ├── useChatEngine.js        # Core chat logic with streaming
-│   ├── useModelManager.js      # Model fetching and management
-│   ├── useMarkdownRenderer.js  # MathJax integration
-│   ├── useMCPManager.js        # MCP client management
-│   └── useToolManager.js       # Tool execution and validation
-├── components/                 # UI components
-│   ├── Sidebar.jsx            # Settings and MCP configuration
-│   ├── MessagesContainer.jsx   # Message display with auto-scroll
-│   ├── MessageInput.jsx       # Input area with prompt templates
-│   └── ErrorDisplay.jsx       # Error handling and display
-├── utils/                      # Utilities and clients
-│   ├── apiClient.js           # OpenRouter API client
-│   ├── mcpClient.js           # MCP client with dual transport
-│   ├── httpClient.js          # Common HTTP utilities
-│   ├── mathProcessor.js       # MathJax utilities
-│   └── constants.js           # Application constants
-└── mcp_server.py             # MCP server with dual transport support
+├── main.js                 # App entry point with tool examples
+├── LLMChatInterface.js     # Main chat component
+├── components/             # UI components (htm templates)
+│   ├── Sidebar.js         # Model selection, API key, MCP settings
+│   ├── MessagesContainer.js # Message display with streaming
+│   ├── MessageInput.js    # Input area with send functionality
+│   ├── Message.js         # Individual message rendering
+│   └── ErrorDisplay.js    # Error handling display
+├── hooks/                  # Custom hooks (Preact compatible)
+│   ├── useChatEngine.js   # Core chat logic with streaming
+│   ├── useModelManager.js # Model fetching from OpenRouter
+│   ├── useMarkdownRenderer.js # Markdown + MathJax rendering
+│   ├── useMCPManager.js   # MCP server connections
+│   └── useToolManager.js  # Tool execution management
+└── utils/                  # Utilities
+    ├── html.js            # htm binding setup
+    ├── apiClient.js       # OpenRouter API client
+    ├── mcpClient.js       # MCP protocol client
+    └── mathProcessor.js   # MathJax integration
 ```
 
-## Dependencies
+## 🛠️ Development
 
-### Runtime Dependencies
-- React 18 with functional components and hooks
-- OpenRouter API for LLM access
-- MathJax 3 for mathematical expression rendering
-- FastMCP for server implementations
+### Prerequisites
 
-### Development Dependencies  
-- Vite for build tooling and development server
-- ESLint for code linting
-- Tailwind CSS for styling (CDN)
-
-## Architecture Notes
-
-- **Component Library Design** - Can be embedded in other React applications
-- **Custom Hooks Pattern** - Modular state management without external libraries  
-- **Dual Transport MCP** - Supports both modern and legacy MCP protocols
-- **Dual Transport Architecture** - Single server supports both SSE and HTTP transports
-- **Zero Config Math** - MathJax integration with automatic formula detection
-- **CORS Enabled** - All servers configured for local development
-- **Tool Execution Logging** - Comprehensive console logging for debugging
-- **Development Optimized** - Auto-reload, rich CLI, and comprehensive error handling
-
-The interface is designed as a reusable component with a comprehensive props API for embedding in larger applications while also functioning as a standalone chat interface.
-
-## Server Usage Examples
-
-The MCP server supports both transport protocols with flexible configuration:
-
-**Basic Usage:**
 ```bash
-# Default SSE transport on port 8000
-python mcp_server.py
-
-# HTTP transport on port 8001  
-python mcp_server.py --transport http --port 8001
-
-# Development with auto-reload
-python mcp_server.py --transport http --port 8001 --reload
+npm install  # Only needed for development server
 ```
 
-**Features:**
-- ✅ Single server with dual transport support
-- ✅ Complementary math operations (multiply, divide)
-- ✅ Rich CLI interface with help
-- ✅ Better error handling and logging
-- ✅ Development auto-reload support
+### Development Workflow
+
+```bash
+# Development with hot reloading
+npm run dev
+# Opens http://localhost:8080
+
+# No build step needed for deployment!
+# Just copy files to any web server
+```
+
+### Production Deployment
+
+**Option 1: Python Server**
+```bash
+python -m http.server 8080
+# Works immediately - no build needed
+```
+
+**Option 2: GitHub Pages**
+```bash
+# Just push to GitHub Pages
+# CDN imports work directly in browsers
+```
+
+**Option 3: Any Static Host**
+```bash
+# Upload files to: Netlify, Vercel, Apache, nginx, etc.
+# All dependencies loaded from CDN
+```
+
+## 📦 Usage
+
+### Standalone Usage
+
+Open `index.html` in any browser or serve with any static server. The interface includes:
+
+- API key management (stored in localStorage)
+- Model selection (OpenRouter models)
+- Tool calling examples
+- MCP server integration UI
+- Math rendering support
+
+### Component Integration
+
+```javascript
+import { html } from './src/utils/html.js';
+import LLMChatInterface from './src/LLMChatInterface.js';
+
+const App = () => html`
+  <${LLMChatInterface}
+    defaultModel="openai/gpt-4o-mini"
+    height="100vh"
+    tools=${tools}
+    toolHandlers=${toolHandlers}
+    enableTools=${true}
+  />
+`;
+```
+
+### Tool Calling Example
+
+```javascript
+const tools = [
+  {
+    type: "function",
+    function: {
+      name: "add_numbers",
+      description: "Add two numbers together",
+      parameters: {
+        type: "object",
+        properties: {
+          a: { type: "number", description: "First number" },
+          b: { type: "number", description: "Second number" }
+        },
+        required: ["a", "b"]
+      }
+    }
+  }
+];
+
+const toolHandlers = {
+  add_numbers: ({ a, b }) => ({ result: a + b })
+};
+```
+
+## 🌐 API Configuration
+
+### OpenRouter Integration
+
+```javascript
+// Automatic model fetching from OpenRouter API
+// Supports: GPT-4, Claude, Gemini, Llama, etc.
+// Streaming: Server-Sent Events with throttling
+// Headers: Proper CORS and referrer headers
+```
+
+### MCP Server Integration
+
+```javascript
+// Connect to external tool servers
+// Supports: HTTP and SSE transports
+// Auto-detection of server capabilities
+// Tool discovery and execution
+```
+
+## 🎯 Technical Details
+
+### htm Template Syntax
+
+Instead of JSX:
+```javascript
+// Old JSX
+return <div className="chat">Hello {name}</div>;
+
+// New htm
+return html`<div className="chat">Hello ${name}</div>`;
+```
+
+### CDN Dependencies
+
+All imports use CDN URLs for zero-build deployment:
+```javascript
+import { render } from 'https://esm.sh/preact@10.19.3';
+import { useState } from 'https://esm.sh/preact@10.19.3/hooks';
+import htm from 'https://esm.sh/htm@3.1.1';
+```
+
+### File Extensions
+
+- All files use `.js` extension (not `.jsx`) for proper MIME types
+- Static servers serve `.js` files correctly for ES6 modules
+- Browser loads modules without compilation
+
+## 📁 Project Structure
+
+```
+llm-chat/
+├── index.html              # Entry point (works on any server)
+├── src/                    # Source files (ES6 modules)
+│   ├── main.js            # Application entry
+│   ├── LLMChatInterface.js # Main component
+│   ├── components/        # UI components
+│   ├── hooks/             # Custom hooks
+│   └── utils/             # Utilities
+├── package.json           # Development dependencies only
+├── vite.config.js         # Development server config
+└── README.md              # This file
+```
+
+## 🔄 Migration from React
+
+This project was successfully migrated from React to Preact + htm:
+
+**Benefits Achieved:**
+- **92% smaller bundle** (3KB vs 40KB)
+- **Zero build requirement** - works directly in browsers
+- **Same developer experience** - hooks, components, state management
+- **Universal deployment** - works on any static server
+- **Faster development** - no compilation step needed
+
+**Migration Process:**
+1. React → Preact (API compatible)
+2. JSX → htm template literals
+3. Local imports → CDN imports  
+4. `.jsx` → `.js` file extensions
+
+## 🎨 Styling
+
+- **Tailwind CSS** - Utility-first CSS framework (CDN)
+- **MathJax** - Mathematical expression rendering
+- **Responsive Design** - Mobile-first approach
+- **Dark Mode Ready** - Theme switching support
+
+## 📝 License
+
+MIT License - see LICENSE file for details.
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create feature branch
+3. Test with `npm run dev`
+4. Test deployment with `python -m http.server 8080`
+5. Submit pull request
+
+**Development Notes:**
+- No build step needed for most changes
+- Edit files directly and refresh browser
+- Vite dev server provides hot reloading
+- All dependencies loaded from CDN in production
