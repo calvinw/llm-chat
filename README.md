@@ -120,8 +120,16 @@ const App = () => html`
     tools=${tools}
     toolHandlers=${toolHandlers}
     enableTools=${true}
+    sidebarPosition="left"  // Optional: "left" or "right" (default)
   />
 `;
+```
+
+### Sidebar Position
+
+The sidebar can be positioned on either the left or right side of the chat interface:
+- `sidebarPosition="left"` - Sidebar appears on the left side
+- `sidebarPosition="right"` - Sidebar appears on the right side (default)
 ```
 
 ### Tool Calling Example
