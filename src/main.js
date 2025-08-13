@@ -79,6 +79,7 @@ function App() {
             systemPrompt=""
             defaultModel="openai/gpt-4o-mini"
             height="100vh"
+            sidebarPosition="left"
         />
     `;
 }

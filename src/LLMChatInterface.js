@@ -28,7 +28,8 @@ const LLMChatInterface = ({
   showDisplayModeToggle = true,
   onMessage = null,
   onError = null,
-  theme = "light"
+  theme = "light",
+  sidebarPosition = "right" // New prop: "left" or "right"
 }) => {
   const [apiKey, setApiKey] = useState(propApiKey || localStorage.getItem('openrouter-api-key') || '');
   const [displayMode, setDisplayMode] = useState('markdown');
@@ -172,29 +173,31 @@ const LLMChatInterface = ({
 
   return html`
     <div className=${`llm-chat-container ${className} ${theme === 'dark' ? 'llm-chat-dark' : 'llm-chat-light'} relative flex h-full`} style="height: ${height}">
-      <!-- Sidebar -->
-      <${Sidebar}
-        isVisible=${sidebarVisible}
-        onToggle=${toggleSidebar}
-        onNewChat=${handleNewChat}
-        apiKey=${apiKey}
-        onApiKeyChange=${setApiKey}
-        displayMode=${displayMode}
-        onDisplayModeChange=${setDisplayMode}
-        currentModel=${currentModel}
-        setCurrentModel=${setCurrentModel}
-        models=${models}
-        modelsLoading=${modelsLoading}
-        isLoading=${isLoading || isStreaming}
-        mcpServerUrl=${mcpServerUrl}
-        onMcpServerUrlChange=${setMcpServerUrl}
-        mcpTransport=${mcpTransport}
-        onMcpTransportChange=${setMcpTransport}
-        mcpConnectionStatus=${mcpConnectionStatus}
-      />
-      
+      ${sidebarPosition === 'left' && html`
+        <!-- Sidebar on Left -->
+        <${Sidebar}
+          isVisible=${sidebarVisible}
+          onToggle=${toggleSidebar}
+          onNewChat=${handleNewChat}
+          apiKey=${apiKey}
+          onApiKeyChange=${setApiKey}
+          displayMode=${displayMode}
+          onDisplayModeChange=${setDisplayMode}
+          currentModel=${currentModel}
+          setCurrentModel=${setCurrentModel}
+          models=${models}
+          modelsLoading=${modelsLoading}
+          isLoading=${isLoading || isStreaming}
+          mcpServerUrl=${mcpServerUrl}
+          onMcpServerUrlChange=${setMcpServerUrl}
+          mcpTransport=${mcpTransport}
+          onMcpTransportChange=${setMcpTransport}
+          mcpConnectionStatus=${mcpConnectionStatus}
+          sidebarPosition=${sidebarPosition}
+        />
+      `}
       <!-- Main Chat Area -->
-      <div className=${`flex-1 flex flex-col transition-all duration-300 h-full ${sidebarVisible ? 'lg:ml-[260px] ml-0' : 'lg:ml-[60px] ml-0'}`}>
+      <div className=${`flex-1 flex flex-col transition-all duration-300 h-full ${sidebarVisible ? (sidebarPosition === 'right' ? 'lg:mr-[260px] mr-0' : 'lg:ml-[260px] ml-0') : (sidebarPosition === 'right' ? 'lg:mr-[60px] mr-0' : 'lg:ml-[60px] ml-0' )}`}>
         <!-- Error Message Display Area -->
         <${ErrorDisplay} error=${error} />
         
@@ -224,6 +227,29 @@ const LLMChatInterface = ({
           apiKey=${apiKey}
         />
       </div>
+      ${sidebarPosition === 'right' && html`
+        <!-- Sidebar on Right -->
+        <${Sidebar}
+          isVisible=${sidebarVisible}
+          onToggle=${toggleSidebar}
+          onNewChat=${handleNewChat}
+          apiKey=${apiKey}
+          onApiKeyChange=${setApiKey}
+          displayMode=${displayMode}
+          onDisplayModeChange=${setDisplayMode}
+          currentModel=${currentModel}
+          setCurrentModel=${setCurrentModel}
+          models=${models}
+          modelsLoading=${modelsLoading}
+          isLoading=${isLoading || isStreaming}
+          mcpServerUrl=${mcpServerUrl}
+          onMcpServerUrlChange=${setMcpServerUrl}
+          mcpTransport=${mcpTransport}
+          onMcpTransportChange=${setMcpTransport}
+          mcpConnectionStatus=${mcpConnectionStatus}
+          sidebarPosition=${sidebarPosition}
+        />
+      `}
     </div>
   `;
 };

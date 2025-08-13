@@ -18,15 +18,16 @@ const Sidebar = ({
     onMcpServerUrlChange,
     mcpTransport,
     onMcpTransportChange,
-    mcpConnectionStatus
+    mcpConnectionStatus,
+    sidebarPosition = "right" // New prop
 }) => {
     return html`
         <div className="relative h-full">
             <!-- Single Sidebar - changes width based on isVisible state -->
-            <div className=${`absolute left-0 top-0 h-full bg-white border-r border-gray-200 text-gray-900 transition-all duration-300 z-20 ${
+            <div className=${`absolute ${sidebarPosition === 'right' ? 'right-0' : 'left-0'} top-0 h-full bg-white ${sidebarPosition === 'right' ? 'border-l' : 'border-r'} border-gray-200 text-gray-900 transition-all duration-300 z-20 ${
                 isVisible ? 'lg:w-[260px] w-[260px]' : 'lg:w-[60px] w-0 lg:block hidden'
             } ${
-                isVisible ? 'translate-x-0' : 'lg:translate-x-0 -translate-x-full'
+                isVisible ? 'translate-x-0' : `lg:translate-x-0 ${sidebarPosition === 'right' ? 'translate-x-full' : '-translate-x-full'}`
             }`}>
                 <!-- Header - Hamburger Menu -->
                 <div className="flex items-center p-3 border-b border-gray-200">
@@ -173,7 +174,7 @@ const Sidebar = ({
             ${!isVisible && html`
                 <button
                     onClick=${onToggle}
-                    className="lg:hidden absolute top-4 left-4 z-30 p-3 bg-white rounded-full shadow-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors"
+                    className=${`lg:hidden absolute top-4 ${sidebarPosition === 'right' ? 'right-4' : 'left-4'} z-30 p-3 bg-white rounded-full shadow-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors`}
                     aria-label="Open sidebar"
                 >
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
