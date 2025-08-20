@@ -38,15 +38,26 @@ const Message = forwardRef(({ message, renderMessage, index, isStreaming, displa
                 
                 // Get property keys in definition order (required first, then others)
                 const propertyKeys = Object.keys(properties);
-                const requiredKeys = required.filter(key => key in toolCall.arguments);
+                
+                // Combine actual arguments with defaults from schema
+                const displayArgs = { ...toolCall.arguments };
+                
+                // Add defaults for missing optional parameters
+                propertyKeys.forEach(key => {
+                  if (!(key in displayArgs) && properties[key]?.default !== undefined) {
+                    displayArgs[key] = properties[key].default;
+                  }
+                });
+                
+                const requiredKeys = required.filter(key => key in displayArgs);
                 const optionalKeys = propertyKeys
-                  .filter(key => !required.includes(key) && key in toolCall.arguments)
+                  .filter(key => !required.includes(key) && key in displayArgs)
                   .sort(); // Sort optional keys alphabetically
                 
                 const orderedKeys = [...requiredKeys, ...optionalKeys];
                 
                 return orderedKeys.map(key => {
-                  const value = toolCall.arguments[key];
+                  const value = displayArgs[key];
                   return `${key}=${typeof value === 'string' ? `"${value}"` : value}`;
                 }).join(', ');
               })()})
@@ -71,7 +82,24 @@ const Message = forwardRef(({ message, renderMessage, index, isStreaming, displa
             <div>
               <div className="text-xs font-semibold text-purple-700 mb-1">Input:</div>
               <div className="bg-blue-50 p-2 rounded border">
-                <pre className="whitespace-pre-wrap text-xs">${JSON.stringify(toolCall.arguments, null, 2)}</pre>
+                <pre className="whitespace-pre-wrap text-xs">${JSON.stringify((() => {
+                  const toolDef = tools?.find(t => t.function?.name === toolCall.name);
+                  const properties = toolDef?.function?.parameters?.properties;
+                  
+                  if (!properties) return toolCall.arguments;
+                  
+                  // Combine actual arguments with defaults from schema
+                  const displayArgs = { ...toolCall.arguments };
+                  
+                  // Add defaults for missing optional parameters
+                  Object.keys(properties).forEach(key => {
+                    if (!(key in displayArgs) && properties[key]?.default !== undefined) {
+                      displayArgs[key] = properties[key].default;
+                    }
+                  });
+                  
+                  return displayArgs;
+                })(), null, 2)}</pre>
               </div>
             </div>
             

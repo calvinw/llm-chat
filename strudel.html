@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Strudel + LLM Chat</title>
+
+  <!-- Markdown-it for chat rendering -->
+  <script src="https://cdn.jsdelivr.net/npm/markdown-it@13.0.1/dist/markdown-it.min.js"></script>
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- MathJax (used by chat when rendering math) -->
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['$', '$'], ['\\(', '\\)']],
+        displayMath: [['$$', '$$'], ['\\[', '\\]']],
+        processEscapes: true,
+        processEnvironments: true,
+        packages: {'[+]': ['ams', 'newcommand', 'configmacros']}
+      },
+      options: { skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre'] }
+    };
+  </script>
+  <script id="MathJax-script" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
+
+  <!-- Strudel REPL -->
+  <script src="https://unpkg.com/@strudel/repl@1.0.2"></script>
+
+  <style>
+    body { margin: 0; padding: 0; }
+  </style>
+</head>
+<body class="h-screen overflow-hidden bg-gray-50">
+  <div id="root" class="h-full"></div>
+
+  <script type="module">
+    import { render } from 'https://esm.sh/preact@10.19.3';
+    import { useState, useMemo, useRef, useEffect } from 'https://esm.sh/preact@10.19.3/hooks';
+    import { html } from './src/utils/html.js';
+    import LLMChatInterface from './src/LLMChatInterface.js';
+
+    // Strudel control buttons
+    const StrudelControls = ({ onPlay, onStop }) => html`
+      <div className="p-4 pb-0 space-y-3">
+        <h2 className="text-lg font-semibold text-gray-800">Strudel Controls</h2>
+        <button
+          className="px-4 py-3 rounded-lg font-semibold border w-full bg-green-600 text-white border-green-700 hover:bg-green-700 transition-colors"
+          onClick=${onPlay}
+          title="Play current code in Strudel editor"
+        >
+          ▶ PLAY
+        </button>
+        <button
+          className="px-4 py-3 rounded-lg font-semibold border w-full bg-red-600 text-white border-red-700 hover:bg-red-700 transition-colors"
+          onClick=${onStop}
+          title="Stop Strudel playback"
+        >
+          ⏹ STOP
+        </button>
+      </div>
+    `;
+
+    // Left pane with Strudel editor and controls
+    const StrudelPanel = ({ onPlay, onStop }) => {
+      return html`
+        <div className="h-full flex flex-col">
+          <${StrudelControls} onPlay=${onPlay} onStop=${onStop} />
+          <div className="px-4 pb-4">
+            <strudel-editor 
+              id="strudelEditor" 
+              className=""
+              code='sound("bd hh sd oh")'
+            ></strudel-editor>
+          </div>
+        </div>
+      `;
+    };
+
+    function App() {
+      // Split pane layout state
+      const containerRef = useRef(null);
+      const MIN_LEFT = 220;   // px
+      const MIN_RIGHT = 360;  // px
+      const [leftWidth, setLeftWidth] = useState(() => {
+        try {
+          const saved = localStorage.getItem('strudel-left-width');
+          if (saved) return Math.max(MIN_LEFT, parseInt(saved, 10));
+        } catch {}
+        return Math.max(MIN_LEFT, Math.floor((typeof window !== 'undefined' ? window.innerWidth : 1000) * 0.5));
+      });
+
+      // Persist width and clamp on mount/resize
+      useEffect(() => {
+        const clampToContainer = () => {
+          const el = containerRef.current;
+          if (!el) return;
+          const total = el.clientWidth || (typeof window !== 'undefined' ? window.innerWidth : 1200);
+          setLeftWidth(prev => {
+            const clamped = Math.min(Math.max(prev, MIN_LEFT), total - MIN_RIGHT);
+            try { localStorage.setItem('strudel-left-width', String(clamped)); } catch {}
+            return clamped;
+          });
+        };
+        clampToContainer();
+        const onResize = () => clampToContainer();
+        window.addEventListener('resize', onResize);
+        return () => window.removeEventListener('resize', onResize);
+      }, []);
+
+      // Drag to resize
+      const startDrag = (e) => {
+        e.preventDefault();
+        const startX = (e.touches && e.touches[0]?.clientX) ?? e.clientX;
+        const startWidth = leftWidth;
+        const el = containerRef.current;
+        const total = el ? el.clientWidth : (typeof window !== 'undefined' ? window.innerWidth : 1200);
+
+        const onMove = (ev) => {
+          const clientX = (ev.touches && ev.touches[0]?.clientX) ?? ev.clientX;
+          let next = startWidth + (clientX - startX);
+          next = Math.max(MIN_LEFT, Math.min(next, total - MIN_RIGHT));
+          setLeftWidth(next);
+        };
+        const onUp = () => {
+          document.removeEventListener('mousemove', onMove);
+          document.removeEventListener('mouseup', onUp);
+          document.removeEventListener('touchmove', onMove);
+          document.removeEventListener('touchend', onUp);
+          try { localStorage.setItem('strudel-left-width', String(leftWidth)); } catch {}
+          if (el) el.style.userSelect = '';
+          document.body.style.cursor = '';
+        };
+
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+        document.addEventListener('touchmove', onMove, { passive: false });
+        document.addEventListener('touchend', onUp);
+        if (el) el.style.userSelect = 'none';
+        document.body.style.cursor = 'col-resize';
+      };
+
+      const resetSplit = () => {
+        const el = containerRef.current;
+        const total = el ? el.clientWidth : (typeof window !== 'undefined' ? window.innerWidth : 1200);
+        const next = Math.max(MIN_LEFT, Math.floor(total * 0.5));
+        setLeftWidth(next);
+        try { localStorage.setItem('strudel-left-width', String(next)); } catch {}
+      };
+
+      // Strudel editor functions
+      const playCurrentCode = () => {
+        const editor = document.getElementById('strudelEditor');
+        if (editor && editor.editor && editor.editor.evaluate) {
+          try {
+            editor.editor.evaluate();
+            console.log('✅ Strudel code played');
+          } catch (error) {
+            console.error('❌ Error playing Strudel code:', error);
+          }
+        } else {
+          console.warn('Strudel editor not ready');
+        }
+      };
+
+      const stopAll = () => {
+        const editor = document.getElementById('strudelEditor');
+        if (editor && editor.editor && editor.editor.stop) {
+          try {
+            editor.editor.stop();
+            console.log('✅ Strudel playback stopped');
+          } catch (error) {
+            console.error('❌ Error stopping Strudel:', error);
+          }
+        } else {
+          console.warn('Strudel editor not ready');
+        }
+      };
+
+      const getCurrentCode = () => {
+        const editor = document.getElementById('strudelEditor');
+        if (editor && editor.editor) {
+          try {
+            let currentCode = '';
+            
+            // First try to get from editor state
+            if (editor.editor.editor && editor.editor.editor.state) {
+              currentCode = editor.editor.editor.state.doc.toString();
+            }
+            // Fall back to code property
+            else if (editor.editor.code) {
+              currentCode = editor.editor.code;
+            }
+            
+            console.log('✅ Retrieved Strudel code:', currentCode);
+            return currentCode;
+          } catch (error) {
+            console.error('❌ Error getting Strudel code:', error);
+            return '';
+          }
+        } else {
+          console.warn('Strudel editor not ready');
+          return '';
+        }
+      };
+
+      const setCode = (code) => {
+        const editor = document.getElementById('strudelEditor');
+        if (editor && editor.editor && editor.editor.setCode) {
+          try {
+            editor.editor.setCode(code);
+            console.log('✅ Set Strudel code:', code);
+          } catch (error) {
+            console.error('❌ Error setting Strudel code:', error);
+          }
+        } else {
+          console.warn('Strudel editor not ready');
+        }
+      };
+
+      // Local tools definitions
+      const tools = useMemo(() => ([
+        {
+          type: 'function',
+          function: {
+            name: 'play_code',
+            description: 'Play/evaluate code in the Strudel editor. If code is provided, sets it first then plays. If no code provided, plays current editor content.',
+            parameters: {
+              type: 'object',
+              properties: {
+                code: { 
+                  type: 'string', 
+                  description: 'Optional Strudel code to set and play. If not provided, plays current editor content.'
+                }
+              },
+              required: []
+            }
+          }
+        },
+        {
+          type: 'function',
+          function: {
+            name: 'get_code',
+            description: 'Get the current code from the Strudel editor',
+            parameters: { type: 'object', properties: {}, required: [] }
+          }
+        },
+        {
+          type: 'function',
+          function: {
+            name: 'stop_code',
+            description: 'Stop the current Strudel playback',
+            parameters: { type: 'object', properties: {}, required: [] }
+          }
+        },
+        {
+          type: 'function',
+          function: {
+            name: 'set_code',
+            description: 'Set code in the Strudel editor. If no code provided, uses default drum pattern.',
+            parameters: {
+              type: 'object',
+              properties: {
+                code: { 
+                  type: 'string', 
+                  description: 'The Strudel code to set in the editor. Optional - uses default if not provided.',
+                  default: 'sound("bd hh sd oh")'
+                }
+              },
+              required: []
+            }
+          }
+        }
+      ]), []);
+
+      // Tool implementations
+      const toolHandlers = useMemo(() => ({
+        play_code: ({ code } = {}) => {
+          if (code) {
+            // Set the code first, then play
+            setCode(code);
+            // Small delay to ensure code is set before playing
+            setTimeout(() => {
+              playCurrentCode();
+            }, 100);
+            return { status: 'success', message: 'Code set and played in Strudel editor' };
+          } else {
+            // Just play current code
+            playCurrentCode();
+            return { status: 'success', message: 'Current code played in Strudel editor' };
+          }
+        },
+
+        get_code: () => {
+          const code = getCurrentCode();
+          return { code, status: 'success' };
+        },
+
+        stop_code: () => {
+          stopAll();
+          return { status: 'success', message: 'Strudel playback stopped' };
+        },
+
+        set_code: ({ code } = {}) => {
+          const finalCode = code || 'sound("bd hh sd oh")';
+          const usedDefault = !code;
+          setCode(finalCode);
+          return { 
+            status: 'success', 
+            message: usedDefault ? 'Code set to default pattern in Strudel editor' : 'Code set in Strudel editor',
+            code: finalCode
+          };
+        }
+      }), []);
+
+      const systemPrompt = `You are assisting with a Strudel live coding environment. Strudel is a JavaScript library for live coding patterns and music. Use the provided tools to interact with the Strudel editor:
+
+- play_code: Play/evaluate the current code
+- get_code: Get the current code from the editor  
+- stop_code: Stop current playback
+- set_code: Set new code in the editor
+
+You can help users create musical patterns, sequences, and live coding experiences using Strudel syntax.`;
+
+      const handleToolCall = (name, args, result, error) => {
+        if (error) console.log(`❌ Tool ${name} error:`, error.message);
+        else console.log(`✅ Tool ${name} result:`, result);
+      };
+
+      return html`
+        <div ref=${containerRef} className="h-full w-full flex">
+          <!-- Left: Strudel Panel -->
+          <div
+            className="border-r border-gray-200 bg-white overflow-hidden"
+            style=${{ width: `${leftWidth}px`, minWidth: `${MIN_LEFT}px` }}
+          >
+            <${StrudelPanel} onPlay=${playCurrentCode} onStop=${stopAll} />
+          </div>
+
+          <!-- Resizer -->
+          <div
+            role="separator"
+            aria-orientation="vertical"
+            title="Drag to resize (double-click to reset)"
+            onMouseDown=${startDrag}
+            onTouchStart=${startDrag}
+            onDblClick=${resetSplit}
+            className="w-1.5 bg-gray-200 hover:bg-gray-300 active:bg-gray-300 cursor-col-resize"
+          />
+
+          <!-- Right: LLM Chat -->
+          <div className="h-full flex-1 min-w-0" style=${{ minWidth: `${MIN_RIGHT}px` }}>
+            <${LLMChatInterface}
+              tools=${tools}
+              toolHandlers=${toolHandlers}
+              enableTools=${true}
+              toolChoice="auto"
+              parallelToolCalls=${true}
+              onToolCall=${handleToolCall}
+              systemPrompt=${systemPrompt}
+              defaultModel="openai/gpt-4o-mini"
+              height="100vh"
+            />
+          </div>
+        </div>
+      `;
+    }
+
+    render(html`<${App} />`, document.getElementById('root'));
+  </script>
+</body>
+</html>
