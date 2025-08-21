@@ -8,6 +8,8 @@ import ErrorDisplay from './components/ErrorDisplay.js';
 import MessagesContainer from './components/MessagesContainer.js';
 import MessageInput from './components/MessageInput.js';
 import Sidebar from './components/Sidebar.js';
+import TabHeader from './components/TabHeader.js';
+import SystemPromptTab from './components/SystemPromptTab.js';
 
 const LLMChatInterface = ({
   apiKey: propApiKey = null,
@@ -35,6 +37,8 @@ const LLMChatInterface = ({
   const [displayMode, setDisplayMode] = useState('markdown');
   const [error, setError] = useState(null);
   const [sidebarVisible, setSidebarVisible] = useState(true);
+  const [activeTab, setActiveTab] = useState('messages');
+  const [currentSystemPrompt, setCurrentSystemPrompt] = useState(systemPrompt);
   const messagesEndRef = useRef(null);
 
   // MCP Manager for remote tool servers
@@ -101,7 +105,7 @@ const LLMChatInterface = ({
   } = useChatEngine(
     apiKey, 
     defaultModel, 
-    systemPrompt,
+    currentSystemPrompt,
     mergedTools,
     mergedToolHandlers,
     toolChoice,
@@ -171,6 +175,15 @@ const LLMChatInterface = ({
     setSidebarVisible(!sidebarVisible);
   };
 
+  const tabs = [
+    { id: 'messages', label: 'Messages' },
+    { id: 'system', label: 'System Prompt' }
+  ];
+
+  const handleSystemPromptChange = (newPrompt) => {
+    setCurrentSystemPrompt(newPrompt);
+  };
+
   return html`
     <div className=${`llm-chat-container ${className} ${theme === 'dark' ? 'llm-chat-dark' : 'llm-chat-light'} relative flex h-full`} style="height: ${height}">
       ${sidebarPosition === 'left' && html`
@@ -198,34 +211,54 @@ const LLMChatInterface = ({
       `}
       <!-- Main Chat Area -->
       <div className=${`flex-1 flex flex-col transition-all duration-300 h-full ${sidebarVisible ? (sidebarPosition === 'right' ? 'lg:mr-[260px] mr-0' : 'lg:ml-[260px] ml-0') : (sidebarPosition === 'right' ? 'lg:mr-[60px] mr-0' : 'lg:ml-[60px] ml-0' )}`}>
+        <!-- Tab Header -->
+        <${TabHeader} 
+          activeTab=${activeTab}
+          setActiveTab=${setActiveTab}
+          tabs=${tabs}
+        />
+        
         <!-- Error Message Display Area -->
         <${ErrorDisplay} error=${error} />
         
-        <!-- Messages Display Area - takes remaining space -->
-        <${MessagesContainer}
-          messages=${messages}
-          isLoading=${isLoading}
-          isStreaming=${isStreaming}
-          renderMessage=${renderMessage}
-          messagesEndRef=${messagesEndRef}
-          registerStreamingCallbacks=${registerStreamingCallbacks}
-          displayMode=${displayMode}
-          tools=${mergedTools}
-        />
-        
-        <!-- Welcome message when no messages -->
-        ${messages.length === 0 && html`
-          <div className="flex items-center justify-center p-8">
-            <h1 className="text-2xl font-semibold text-gray-800">What's on your mind today?</h1>
-          </div>
-        `}
-        
-        <!-- Message Input Area - anchored to bottom -->
-        <${MessageInput}
-          onSendMessage=${handleSendMessage}
-          isLoading=${isLoading || isStreaming}
-          apiKey=${apiKey}
-        />
+        <!-- Tab Content Area -->
+        <div className="flex-1 flex flex-col overflow-hidden">
+          ${activeTab === 'messages' && html`
+            <!-- Messages Tab Content -->
+            <${MessagesContainer}
+              messages=${messages}
+              isLoading=${isLoading}
+              isStreaming=${isStreaming}
+              renderMessage=${renderMessage}
+              messagesEndRef=${messagesEndRef}
+              registerStreamingCallbacks=${registerStreamingCallbacks}
+              displayMode=${displayMode}
+              tools=${mergedTools}
+            />
+            
+            <!-- Welcome message when no messages -->
+            ${messages.length === 0 && html`
+              <div className="flex items-center justify-center p-8">
+                <h1 className="text-2xl font-semibold text-gray-800">What's on your mind today?</h1>
+              </div>
+            `}
+            
+            <!-- Message Input Area - anchored to bottom -->
+            <${MessageInput}
+              onSendMessage=${handleSendMessage}
+              isLoading=${isLoading || isStreaming}
+              apiKey=${apiKey}
+            />
+          `}
+          
+          ${activeTab === 'system' && html`
+            <!-- System Prompt Tab Content -->
+            <${SystemPromptTab}
+              systemPrompt=${currentSystemPrompt}
+              onSystemPromptChange=${handleSystemPromptChange}
+            />
+          `}
+        </div>
       </div>
       ${sidebarPosition === 'right' && html`
         <!-- Sidebar on Right -->
