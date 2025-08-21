@@ -161,8 +161,7 @@ const Message = forwardRef(({ message, renderMessage, index, isStreaming, displa
   // Return the htm template for regular messages
   return html`
     <div className=${`chat-message p-3 rounded border border-gray-200 ${borderClass}`}>
-      <span className="font-semibold text-gray-800">${roleLabel}:</span> 
-      <span 
+      <span className="font-semibold text-gray-800">${roleLabel}:</span> <span 
         className=${contentClasses}
         ref=${contentRef}
         innerHTML=${renderMessage(message.content, message.role) + streamingIndicator}

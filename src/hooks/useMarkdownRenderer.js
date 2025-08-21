@@ -33,8 +33,15 @@ const useMarkdownRenderer = (displayMode = 'markdown') => {
       // Step 2: Render markdown to HTML
       let htmlContent = markdownRenderer.render(processedContent);
       
-      // Step 3: Remove wrapping paragraph tags to make content inline
-      htmlContent = htmlContent.replace(/^<p>/, '').replace(/<\/p>\s*$/, '');
+      // Step 3: Only remove wrapping paragraph tags if content is simple inline text
+      // Keep paragraph tags for complex content with tables, headers, etc.
+      if (!htmlContent.includes('<table>') && !htmlContent.includes('<h1>') && 
+          !htmlContent.includes('<h2>') && !htmlContent.includes('<h3>') &&
+          !htmlContent.includes('<h4>') && !htmlContent.includes('<h5>') &&
+          !htmlContent.includes('<h6>') && !htmlContent.includes('<ul>') &&
+          !htmlContent.includes('<ol>') && !htmlContent.includes('<blockquote>')) {
+        htmlContent = htmlContent.replace(/^<p>/, '').replace(/<\/p>\s*$/, '');
+      }
       
       // Step 4: Restore math expressions
       const finalContent = restoreMath(htmlContent);
@@ -49,8 +56,14 @@ const useMarkdownRenderer = (displayMode = 'markdown') => {
       try {
         console.warn('Attempting fallback: rendering without math processing...');
         let htmlContent = markdownRenderer.render(content);
-        // Remove wrapping paragraph tags for inline display
-        htmlContent = htmlContent.replace(/^<p>/, '').replace(/<\/p>\s*$/, '');
+        // Only remove wrapping paragraph tags if content is simple inline text
+        if (!htmlContent.includes('<table>') && !htmlContent.includes('<h1>') && 
+            !htmlContent.includes('<h2>') && !htmlContent.includes('<h3>') &&
+            !htmlContent.includes('<h4>') && !htmlContent.includes('<h5>') &&
+            !htmlContent.includes('<h6>') && !htmlContent.includes('<ul>') &&
+            !htmlContent.includes('<ol>') && !htmlContent.includes('<blockquote>')) {
+          htmlContent = htmlContent.replace(/^<p>/, '').replace(/<\/p>\s*$/, '');
+        }
         return htmlContent;
       } catch (fallbackError) {
         console.error('Fallback also failed:', fallbackError);

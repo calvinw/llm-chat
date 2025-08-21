@@ -119,12 +119,17 @@ export function createMarkdownRenderer() {
   try {
     // Use global markdownit from CDN
     if (typeof window !== 'undefined' && window.markdownit) {
-      return window.markdownit({
-        html: false, // Disable HTML for security
+      const md = window.markdownit({
+        html: true, // Enable HTML for tables and formatting
         breaks: true, // Convert \n to <br>
         linkify: true, // Auto-convert URLs to links
         typographer: true // Enable smart quotes and other typographic replacements
       });
+      
+      // Ensure table support is enabled (should be by default, but explicitly enable)
+      md.enable(['table']);
+      
+      return md;
     }
     throw new Error('markdownit not available');
   } catch (error) {
