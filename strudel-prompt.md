@@ -687,3 +687,34 @@ s("bd(3,8,0)")                        // 3 beats, 8 segments, 0 offset
 - `layer()` - Alternative layering
 
 Remember: Strudel is about live coding - start simple, experiment freely, and build complexity gradually. Every example here is ready to copy and paste into the Strudel REPL at https://strudel.cc.
+
+## Editable Params
+
+When I ask you to "put in editable params" I want you to look through the strudel expression and put in the function slider for each tweakable param.
+
+For example you can make gain(0.7) become gain(slider(0.7)) 
+and then I will be able to edit that param on the fly in the editor window.
+
+For params that have reasonable mins and maxs that you are aware of put those in like this:
+param(300) becomes param(slider(300,0,1000)) 
+
+If I ask for just one param you do only that one
+If I don't specify you can do all the params. 
+
+There is a step argument, so there is now slider(value, min, max, step) e.g. slider(2,1,8,1) will output integers between 1 and 8. 
+The default step is 1/1000 of the total range. If this doesn't make sense for a particular param, put in a reasonable step based on your understanding.
+
+Guidelines for common parameters:
+- gain: slider(value, 0, 1, 0.01) or slider(value, 0, 2, 0.01) for values >1
+- speed: slider(value, 0.25, 4, 0.1) for forward playback only
+- lpf/hpf: slider(value, 100, 5000, 10) - adjust range based on musical context
+- room/delay: slider(value, 0, 1, 0.01) 
+- attack/release/decay: slider(value, 0, 2, 0.01)
+- pan: slider(value, 0, 1, 0.01) where 0=left, 1=right
+- slow/fast timing: slider(value, 0.5, 8, 0.1)
+- Integer parameters (crush, add intervals): use step=1
+
+Do not put sliders on:
+- Fractional timing offsets (like 1/16, 3/8) 
+- String values (sample names, scale names)
+- Pattern sequences in quotes
