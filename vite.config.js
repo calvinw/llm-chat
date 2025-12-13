@@ -1,9 +1,14 @@
 import { defineConfig } from 'vite';
-import preact from '@preact/preset-vite';
+import react from '@vitejs/plugin-react';
 
 export default defineConfig({
-  plugins: [preact()],
+  plugins: [react()],
+  base: './', // Ensure assets are loaded correctly on GitHub Pages
+  build: {
+    outDir: 'docs',
+    emptyOutDir: true,
+  },
   server: {
-    port: 8080
+    port: 8081,
   }
 });

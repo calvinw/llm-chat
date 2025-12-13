@@ -1,10 +1,10 @@
-import { useState, useEffect } from 'https://esm.sh/preact@10.19.3/hooks';
+import { useState, useEffect } from 'react';
 /**
  * Custom hook for managing AI models
  * Handles fetching models from OpenRouter API or using custom models
  */
 
-import { OpenRouterClient } from '../utils/apiClient.js';
+import { OpenRouterClient } from '../utils/apiClient.jsx';
 
 const useModelManager = (customModels, apiKey) => {
   const [models, setModels] = useState([]);

@@ -1,4 +1,4 @@
-import { useCallback } from 'https://esm.sh/preact@10.19.3/hooks';
+import { useCallback } from 'react';
 
 /**
  * Custom hook for managing tool execution

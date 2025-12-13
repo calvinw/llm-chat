@@ -1,13 +1,13 @@
-import { useState, useMemo } from 'https://esm.sh/preact@10.19.3/hooks';
+import { useState, useMemo } from 'react';
 /**
  * Chat engine hook with tool calling support
  * Manages messages, API communication, and tool execution
  */
 
-import { OpenRouterClient } from '../utils/apiClient.js';
-import { DEFAULT_SYSTEM_PROMPT, MESSAGE_ROLES } from '../utils/constants.js';
-import useToolManager from './useToolManager.js';
-import useStreamingEngine from './useStreamingEngine.js';
+import { OpenRouterClient } from '../utils/apiClient.jsx';
+import { DEFAULT_SYSTEM_PROMPT, MESSAGE_ROLES } from '../utils/constants.jsx';
+import useToolManager from './useToolManager.jsx';
+import useStreamingEngine from './useStreamingEngine.jsx';
 
 const useChatEngine = (apiKey, defaultModel, systemPrompt = DEFAULT_SYSTEM_PROMPT, tools = null, toolHandlers = null, toolChoice = "auto", parallelToolCalls = true, onToolCall = null) => {
   // State management

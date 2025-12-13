@@ -1,4 +1,4 @@
-import { useMemo, useCallback } from 'https://esm.sh/preact@10.19.3/hooks';
+import { useMemo, useCallback } from 'react';
 /**
  * Custom hook for rendering markdown content with math support
  * Handles both markdown and plain text display modes
@@ -8,7 +8,7 @@ import {
   preprocessMarkdownForMath, 
   renderPlainText,
   createMarkdownRenderer 
-} from '../utils/mathProcessor.js';
+} from '../utils/mathProcessor.jsx';
 
 const useMarkdownRenderer = (displayMode = 'markdown') => {
   // Create markdown renderer instance (memoized)

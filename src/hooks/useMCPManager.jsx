@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'https://esm.sh/preact@10.19.3/hooks';
-import { MCPClient } from '../utils/mcpClient.js';
+import { useState, useEffect } from 'react';
+import { MCPClient } from '../utils/mcpClient.jsx';
 
 /**
  * Hook to manage MCP server connections and tools
@@ -11,6 +11,7 @@ const useMCPManager = (transport = 'auto') => {
   const [mcpTools, setMcpTools] = useState([]);
   const [mcpToolHandlers, setMcpToolHandlers] = useState({});
   const [mcpClient, setMcpClient] = useState(null);
+  const [useCorsProxy, setUseCorsProxy] = useState(false);
 
   // Connect to MCP server when URL changes
   useEffect(() => {
@@ -30,8 +31,17 @@ const useMCPManager = (transport = 'auto') => {
       try {
         setMcpConnectionStatus('connecting');
         
+        let targetUrl = mcpServerUrl;
+        if (useCorsProxy) {
+          // Use corsproxy.io
+          // Usually: https://corsproxy.io/?url=<encoded_url>
+          // Or just appended. Docs say appended: https://corsproxy.io/?https://...
+          targetUrl = `https://corsproxy.io/?${encodeURIComponent(mcpServerUrl)}`;
+          console.log('Using CORS Proxy:', targetUrl);
+        }
+
         // Create new MCP client with transport
-        const client = new MCPClient(mcpServerUrl, mcpTransport);
+        const client = new MCPClient(targetUrl, mcpTransport);
         const result = await client.connect();
         
         if (result.success) {
@@ -69,7 +79,7 @@ const useMCPManager = (transport = 'auto') => {
     // Debounce the connection attempt
     const timeoutId = setTimeout(connectToMCP, 1000);
     return () => clearTimeout(timeoutId);
-  }, [mcpServerUrl, mcpTransport]);
+  }, [mcpServerUrl, mcpTransport, useCorsProxy]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -88,7 +98,9 @@ const useMCPManager = (transport = 'auto') => {
     mcpConnectionStatus,
     mcpTools,
     mcpToolHandlers,
-    mcpClient
+    mcpClient,
+    useCorsProxy,
+    setUseCorsProxy
   };
 };
 

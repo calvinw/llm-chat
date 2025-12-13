@@ -1,5 +1,5 @@
-import { useState, useRef, useCallback } from 'https://esm.sh/preact@10.19.3/hooks';
-import { MESSAGE_ROLES } from '../utils/constants.js';
+import { useState, useRef, useCallback } from 'react';
+import { MESSAGE_ROLES } from '../utils/constants.jsx';
 
 /**
  * Custom hook for managing streaming responses and tool integration

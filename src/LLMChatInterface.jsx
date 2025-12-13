@@ -1,15 +1,14 @@
-import { html } from './utils/html.js';
-import { useState, useEffect, useRef, useMemo, useCallback } from 'https://esm.sh/preact@10.19.3/hooks';
-import useChatEngine from './hooks/useChatEngine.js';
-import useModelManager from './hooks/useModelManager.js';
-import useMarkdownRenderer from './hooks/useMarkdownRenderer.js';
-import useMCPManager from './hooks/useMCPManager.js';
-import ErrorDisplay from './components/ErrorDisplay.js';
-import MessagesContainer from './components/MessagesContainer.js';
-import MessageInput from './components/MessageInput.js';
-import Sidebar from './components/Sidebar.js';
-import TabHeader from './components/TabHeader.js';
-import SystemPromptTab from './components/SystemPromptTab.js';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import useChatEngine from './hooks/useChatEngine.jsx';
+import useModelManager from './hooks/useModelManager.jsx';
+import useMarkdownRenderer from './hooks/useMarkdownRenderer.jsx';
+import useMCPManager from './hooks/useMCPManager.jsx';
+import ErrorDisplay from './components/ErrorDisplay.jsx';
+import MessagesContainer from './components/MessagesContainer.jsx';
+import MessageInput from './components/MessageInput.jsx';
+import Sidebar from './components/Sidebar.jsx';
+import TabHeader from './components/TabHeader.jsx';
+import SystemPromptTab from './components/SystemPromptTab.jsx';
 
 const LLMChatInterface = ({
   apiKey: propApiKey = null,
@@ -184,8 +183,9 @@ const LLMChatInterface = ({
     setCurrentSystemPrompt(newPrompt);
   };
 
-  return html`
-    <style>
+  return (
+    <>
+    <style>{`
       /* Markdown content styling for chat messages */
       .chat-message .text-gray-700 table {
         border-collapse: collapse !important;
@@ -303,108 +303,109 @@ const LLMChatInterface = ({
         background-color: transparent !important;
         padding: 0 !important;
       }
-    </style>
+    `}</style>
     
-    <div className=${`llm-chat-container ${className} ${theme === 'dark' ? 'llm-chat-dark' : 'llm-chat-light'} relative flex h-full`} style="height: ${height}">
-      ${sidebarPosition === 'left' && html`
-        <!-- Sidebar on Left -->
-        <${Sidebar}
-          isVisible=${sidebarVisible}
-          onToggle=${toggleSidebar}
-          onNewChat=${handleNewChat}
-          apiKey=${apiKey}
-          onApiKeyChange=${setApiKey}
-          displayMode=${displayMode}
-          onDisplayModeChange=${setDisplayMode}
-          currentModel=${currentModel}
-          setCurrentModel=${setCurrentModel}
-          models=${models}
-          modelsLoading=${modelsLoading}
-          isLoading=${isLoading || isStreaming}
-          mcpServerUrl=${mcpServerUrl}
-          onMcpServerUrlChange=${setMcpServerUrl}
-          mcpTransport=${mcpTransport}
-          onMcpTransportChange=${setMcpTransport}
-          mcpConnectionStatus=${mcpConnectionStatus}
-          sidebarPosition=${sidebarPosition}
+    <div className={`llm-chat-container ${className} ${theme === 'dark' ? 'llm-chat-dark' : 'llm-chat-light'} relative flex h-full`} style={{ height }}>
+      {sidebarPosition === 'left' && (
+        <Sidebar
+          isVisible={sidebarVisible}
+          onToggle={toggleSidebar}
+          onNewChat={handleNewChat}
+          apiKey={apiKey}
+          onApiKeyChange={setApiKey}
+          displayMode={displayMode}
+          onDisplayModeChange={setDisplayMode}
+          currentModel={currentModel}
+          setCurrentModel={setCurrentModel}
+          models={models}
+          modelsLoading={modelsLoading}
+          isLoading={isLoading || isStreaming}
+          mcpServerUrl={mcpServerUrl}
+          onMcpServerUrlChange={setMcpServerUrl}
+          mcpTransport={mcpTransport}
+          onMcpTransportChange={setMcpTransport}
+          mcpConnectionStatus={mcpConnectionStatus}
+          sidebarPosition={sidebarPosition}
         />
-      `}
-      <!-- Main Chat Area -->
-      <div className=${`flex-1 flex flex-col transition-all duration-300 h-full ${sidebarVisible ? (sidebarPosition === 'right' ? 'lg:mr-[260px] mr-0' : 'lg:ml-[260px] ml-0') : (sidebarPosition === 'right' ? 'lg:mr-[60px] mr-0' : 'lg:ml-[60px] ml-0' )}`}>
-        <!-- Tab Header -->
-        <${TabHeader} 
-          activeTab=${activeTab}
-          setActiveTab=${setActiveTab}
-          tabs=${tabs}
+      )}
+      {/* Main Chat Area */}
+      <div className={`flex-1 flex flex-col transition-all duration-300 h-full ${sidebarVisible ? (sidebarPosition === 'right' ? 'lg:mr-[260px] mr-0' : 'lg:ml-[260px] ml-0') : (sidebarPosition === 'right' ? 'lg:mr-[60px] mr-0' : 'lg:ml-[60px] ml-0' )}`}>
+        {/* Tab Header */}
+        <TabHeader 
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+          tabs={tabs}
         />
         
-        <!-- Error Message Display Area -->
-        <${ErrorDisplay} error=${error} />
+        {/* Error Message Display Area */}
+        <ErrorDisplay error={error} />
         
-        <!-- Tab Content Area -->
+        {/* Tab Content Area */}
         <div className="flex-1 flex flex-col overflow-hidden">
-          ${activeTab === 'messages' && html`
-            <!-- Messages Tab Content -->
-            <${MessagesContainer}
-              messages=${messages}
-              isLoading=${isLoading}
-              isStreaming=${isStreaming}
-              renderMessage=${renderMessage}
-              messagesEndRef=${messagesEndRef}
-              registerStreamingCallbacks=${registerStreamingCallbacks}
-              displayMode=${displayMode}
-              tools=${mergedTools}
+          {activeTab === 'messages' && (
+            <>
+            {/* Messages Tab Content */}
+            <MessagesContainer
+              messages={messages}
+              isLoading={isLoading}
+              isStreaming={isStreaming}
+              renderMessage={renderMessage}
+              messagesEndRef={messagesEndRef}
+              registerStreamingCallbacks={registerStreamingCallbacks}
+              displayMode={displayMode}
+              tools={mergedTools}
             />
             
-            <!-- Welcome message when no messages -->
-            ${messages.length === 0 && html`
+            {/* Welcome message when no messages */}
+            {messages.length === 0 && (
               <div className="flex items-center justify-center p-8">
                 <h1 className="text-2xl font-semibold text-gray-800">What's on your mind today?</h1>
               </div>
-            `}
+            )}
             
-            <!-- Message Input Area - anchored to bottom -->
-            <${MessageInput}
-              onSendMessage=${handleSendMessage}
-              isLoading=${isLoading || isStreaming}
-              apiKey=${apiKey}
+            {/* Message Input Area - anchored to bottom */}
+            <MessageInput
+              onSendMessage={handleSendMessage}
+              isLoading={isLoading || isStreaming}
+              apiKey={apiKey}
             />
-          `}
+            </>
+          )}
           
-          ${activeTab === 'system' && html`
-            <!-- System Prompt Tab Content -->
-            <${SystemPromptTab}
-              systemPrompt=${currentSystemPrompt}
-              onSystemPromptChange=${handleSystemPromptChange}
+          {activeTab === 'system' && (
+            /* System Prompt Tab Content */
+            <SystemPromptTab
+              systemPrompt={currentSystemPrompt}
+              onSystemPromptChange={handleSystemPromptChange}
             />
-          `}
+          )}
         </div>
       </div>
-      ${sidebarPosition === 'right' && html`
-        <!-- Sidebar on Right -->
-        <${Sidebar}
-          isVisible=${sidebarVisible}
-          onToggle=${toggleSidebar}
-          onNewChat=${handleNewChat}
-          apiKey=${apiKey}
-          onApiKeyChange=${setApiKey}
-          displayMode=${displayMode}
-          onDisplayModeChange=${setDisplayMode}
-          currentModel=${currentModel}
-          setCurrentModel=${setCurrentModel}
-          models=${models}
-          modelsLoading=${modelsLoading}
-          isLoading=${isLoading || isStreaming}
-          mcpServerUrl=${mcpServerUrl}
-          onMcpServerUrlChange=${setMcpServerUrl}
-          mcpTransport=${mcpTransport}
-          onMcpTransportChange=${setMcpTransport}
-          mcpConnectionStatus=${mcpConnectionStatus}
-          sidebarPosition=${sidebarPosition}
+      {sidebarPosition === 'right' && (
+        <Sidebar
+          isVisible={sidebarVisible}
+          onToggle={toggleSidebar}
+          onNewChat={handleNewChat}
+          apiKey={apiKey}
+          onApiKeyChange={setApiKey}
+          displayMode={displayMode}
+          onDisplayModeChange={setDisplayMode}
+          currentModel={currentModel}
+          setCurrentModel={setCurrentModel}
+          models={models}
+          modelsLoading={modelsLoading}
+          isLoading={isLoading || isStreaming}
+          mcpServerUrl={mcpServerUrl}
+          onMcpServerUrlChange={setMcpServerUrl}
+          mcpTransport={mcpTransport}
+          onMcpTransportChange={setMcpTransport}
+          mcpConnectionStatus={mcpConnectionStatus}
+          sidebarPosition={sidebarPosition}
         />
-      `}
+      )}
     </div>
-  `;
+    </>
+  );
 };
 
 export default LLMChatInterface;
