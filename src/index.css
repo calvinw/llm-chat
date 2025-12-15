@@ -166,3 +166,9 @@
   margin-top: 0.5em !important;
   margin-bottom: 0.5em !important;
 }
+
+/* Remove backticks from inline code in prose */
+.prose code::before,
+.prose code::after {
+  content: none !important;
+}

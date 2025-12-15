@@ -3,104 +3,116 @@
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Project Overview
-This is a Preact-based LLM chat interface component using htm (Hyperscript Tagged Markup) that uses OpenRouter's API. The application supports streaming responses, multiple models, markdown rendering with MathJax support, and can be deployed with zero build steps using CDN imports or with Vite for development.
+This is a React-based LLM chat interface component that uses OpenRouter's API. The application supports streaming responses, multiple models, markdown rendering with MathJax support, tool calling, and MCP (Model Context Protocol) integration. Built with React 19, Vite, Tailwind CSS 4, and Radix UI components.
 
 ## Common Commands
 
-**Development Server (Vite):**
+**Development Server:**
 ```bash
-npm run dev          # Starts Vite dev server on port 8080 with hot reload
+npm run dev          # Starts Vite dev server on port 8081 with hot reload
 ```
 
-**Zero-Build Deployment:**
+**Production Build:**
 ```bash
-python -m http.server 8080    # Serve files directly from any static server
-# Works on GitHub Pages, Netlify, any static hosting
+npm run build        # Builds to /docs directory for deployment
+npm run preview      # Preview production build
 ```
 
 ## Architecture
 
 ### Core Structure
-This is a **Preact component library** using htm template literals, designed as a reusable chat interface, not a standalone application. The main export is `LLMChatInterface.js` which can be embedded in other Preact applications or used standalone with CDN resources.
+This is a **React component library** designed as a reusable chat interface. The main export is `LLMChatInterface.jsx` which can be embedded in other React applications or used standalone.
 
 ### Key Components
 
-**Main Component (`LLMChatInterface.js`):**
+**Main Component (`LLMChatInterface.jsx`):**
 - Root component that orchestrates all chat functionality
 - Manages API key persistence in localStorage
 - Handles display modes (markdown/text) and error states
 - Uses composition pattern with custom hooks for functionality
+- Supports configurable sidebar position (left/right)
 
 **Custom Hooks Architecture:**
-- **`useChatEngine.js`**: Core chat logic with streaming support, message management, and OpenRouter API integration
-- **`useModelManager.js`**: Handles fetching available models from OpenRouter API or using custom model lists
-- **`useMarkdownRenderer.js`**: Manages markdown rendering with MathJax support
-- **`useToolManager.js`**: Manages parallel tool execution with error handling and validation
-- **`useMCPManager.js`**: Manages MCP (Model Context Protocol) server connections and remote tools
+- **`useChatEngine.jsx`**: Core chat logic with streaming support, message management, and OpenRouter API integration
+- **`useModelManager.jsx`**: Handles fetching available models from OpenRouter API or using custom model lists
+- **`useMarkdownRenderer.jsx`**: Manages markdown rendering with MathJax support
+- **`useToolManager.jsx`**: Manages parallel tool execution with error handling and validation
+- **`useMCPManager.jsx`**: Manages MCP (Model Context Protocol) server connections and remote tools
+- **`useStreamingEngine.jsx`**: Handles streaming response processing and throttling
 
 **Component Structure:**
-- **`Sidebar.js`**: Model selection, API key input, MCP configuration, display mode toggle
-- **`MessagesContainer.js`**: Message display with auto-scrolling and streaming support
-- **`MessageInput.js`**: Input area with send functionality
-- **`Message.js`**: Individual message rendering with tool execution display
-- **`ErrorDisplay.js`**: Error handling and display
+- **`Sidebar.jsx`**: Model selection, API key input, MCP configuration, display mode toggle
+- **`MessagesContainer.jsx`**: Message display with auto-scrolling and streaming support
+- **`MessageInput.jsx`**: Input area with send functionality and auto-resize
+- **`Message.jsx`**: Individual message rendering with tool execution display
+- **`ErrorDisplay.jsx`**: Error handling and display
+- **`TabHeader.jsx`**: Tab navigation for different views
+- **`SystemPromptTab.jsx`**: System prompt configuration
+- **`ui/`**: Radix UI components (Button, Select, Dialog, etc.)
+- **`ai-elements/`**: AI-specific UI elements (code blocks, loaders, etc.)
 
 **Utilities:**
-- **`html.js`**: htm binding setup for template literals
-- **`apiClient.js`**: OpenRouter API client with streaming and non-streaming support
-- **`mcpClient.js`**: MCP protocol client for external tool servers
-- **`mathProcessor.js`**: MathJax integration utilities
-- **`constants.js`**: Application constants and configuration
+- **`apiClient.jsx`**: OpenRouter API client with streaming and non-streaming support
+- **`mcpClient.jsx`**: MCP protocol client for external tool servers
+- **`httpClient.jsx`**: HTTP utility functions
+- **`mathProcessor.jsx`**: MathJax integration utilities
+- **`constants.jsx`**: Application constants and configuration
+- **`lib/utils.js`**: Helper functions and utilities
 
 ### Key Features
-- **Zero Build Deployment** - htm template literals work directly in browsers - no compilation needed
-- **Development Server** - Vite dev server for hot reloading during development only
-- **CDN Dependencies** - All external dependencies loaded from CDN (esm.sh)
+- **React 19** - Latest React with modern hooks and features
+- **Vite Build System** - Fast development and optimized production builds
+- **Tailwind CSS 4** - Utility-first CSS with Vite plugin
+- **Radix UI** - Accessible, customizable component primitives
 - **Streaming Responses** - Real-time message streaming with throttled updates
 - **Tool Calling** - Parallel tool execution with local and remote (MCP) tools
 - **Math Rendering** - MathJax support for LaTeX expressions with $ and $$ delimiters
 - **State Management** - Custom hooks pattern for modular state management
 - **API Integration** - OpenRouter API with proper CORS headers and error handling
-- **Component Reusability** - Designed as embeddable Preact component with props API
+- **Component Reusability** - Designed as embeddable React component with props API
 
 ### Development Notes
-- Uses ES6 modules throughout with CDN imports for zero-build deployment
-- Preact with htm template literals and hooks
-- No external state management library - uses Preact's built-in state
-- CSS is handled by Tailwind CSS (CDN)
-- Zero build deployment - files can be served directly from any static server
-- Vite used only for development hot reloading
-- htm templates work directly in browsers without compilation
-- API key is persisted in localStorage with automatic state synchronization
+- Uses React 19.2.1 with JSX syntax
+- Vite 7 for development server and production builds
+- No external state management library - uses React's built-in hooks
+- CSS handled by Tailwind CSS 4 with Vite plugin
+- All files use `.jsx` extension for React components
+- API key persisted in localStorage with automatic state synchronization
 - Tool execution logs displayed in browser console for debugging
-- Default development server runs on port 8080
-- All files use `.js` extension (not `.jsx`) for proper MIME type handling on static servers
+- Development server runs on port 8081
+- Production builds output to `/docs` directory for GitHub Pages
 
 ### File Structure
 ```
 src/
-├── main.js                 # App entry point with tool examples
-├── LLMChatInterface.js     # Main component
-├── components/             # UI components
-│   ├── Sidebar.js         # Model selection & settings
-│   ├── MessagesContainer.js # Message display
-│   ├── MessageInput.js    # Input area
-│   ├── Message.js         # Individual message
-│   └── ErrorDisplay.js    # Error handling
-├── hooks/                  # Custom hooks
-│   ├── useChatEngine.js   # Core chat logic
-│   ├── useModelManager.js # Model fetching
-│   ├── useMarkdownRenderer.js # Markdown/math rendering
-│   ├── useMCPManager.js   # MCP protocol
-│   ├── useStreamingEngine.js # Streaming responses
-│   └── useToolManager.js  # Tool execution
-└── utils/                  # Utilities
-    ├── html.js           # htm setup
-    ├── apiClient.js      # OpenRouter API
-    ├── mcpClient.js      # MCP client
-    ├── httpClient.js     # HTTP utilities
-    ├── mathProcessor.js  # MathJax integration
-    └── constants.js      # App constants
+├── main.jsx                    # App entry point with tool examples
+├── LLMChatInterface.jsx        # Main chat component
+├── index.css                   # Global styles and Tailwind imports
+├── components/                 # React components
+│   ├── Sidebar.jsx            # Model selection & settings
+│   ├── MessagesContainer.jsx  # Message display
+│   ├── MessageInput.jsx       # Input area
+│   ├── Message.jsx            # Individual message
+│   ├── ErrorDisplay.jsx       # Error handling
+│   ├── TabHeader.jsx          # Tab navigation
+│   ├── SystemPromptTab.jsx    # System prompt config
+│   ├── ui/                    # Radix UI components
+│   └── ai-elements/           # AI-specific UI elements
+├── hooks/                      # Custom React hooks
+│   ├── useChatEngine.jsx      # Core chat logic
+│   ├── useModelManager.jsx    # Model fetching
+│   ├── useMarkdownRenderer.jsx # Markdown/math rendering
+│   ├── useMCPManager.jsx      # MCP protocol
+│   ├── useStreamingEngine.jsx # Streaming responses
+│   └── useToolManager.jsx     # Tool execution
+├── utils/                      # Utilities
+│   ├── apiClient.jsx          # OpenRouter API
+│   ├── mcpClient.jsx          # MCP client
+│   ├── httpClient.jsx         # HTTP utilities
+│   ├── mathProcessor.jsx      # MathJax integration
+│   └── constants.jsx          # App constants
+└── lib/
+    └── utils.js               # Helper functions
 ```
 
 ### API Integration Details
@@ -109,66 +121,172 @@ src/
 - **Headers**: Includes HTTP-Referer and X-Title for OpenRouter requirements
 - **Error Handling**: Comprehensive error handling with fallback to non-streaming mode
 - **Default Model**: `openai/gpt-4o-mini`
-- **Dependencies**: All loaded from CDN (esm.sh) for zero-build deployment
+- **Dependencies**: Managed via npm, bundled by Vite
 
-### htm Template Syntax
-Instead of JSX, the project uses htm template literals:
+### JSX Syntax
+The project uses standard React JSX:
 
 ```javascript
-// JSX (old)
-return <div className="chat">Hello {name}</div>;
+// JSX component
+return (
+  <div className="chat">
+    Hello {name}
+  </div>
+);
 
-// htm (current)
-return html`<div className="chat">Hello ${name}</div>`;
-
-// Components in htm
-return html`<${Component} prop=${value} />`;
+// Components
+return <Component prop={value} />;
 
 // Conditional rendering
-return html`${condition && html`<div>Content</div>`}`;
+return (
+  <>
+    {condition && <div>Content</div>}
+  </>
+);
 
 // Lists/mapping
-return html`${items.map(item => html`<div key=${item.id}>${item.name}</div>`)}`;
+return (
+  <>
+    {items.map(item => (
+      <div key={item.id}>{item.name}</div>
+    ))}
+  </>
+);
 ```
 
 ### Deployment Options
 
 **Development:**
-- `npm run dev` - Vite development server with hot reloading
+- `npm run dev` - Vite development server with hot reloading (port 8081)
 
-**Production/Static:**
-- `python -m http.server 8080` - Python static server
-- GitHub Pages - Direct file hosting
-- Netlify/Vercel - Static site hosting
-- Any web server - Apache, nginx, etc.
+**Production:**
+- `npm run build` - Build to `/docs` directory
+- GitHub Pages - Deploy from `/docs` folder
+- Netlify/Vercel - Connect to repository
+- Any static hosting - Upload built files from `/docs`
 
-### Migration Notes
-This project was migrated from React to Preact + htm:
-- **Bundle Size**: Reduced from ~40KB to ~3KB (92% reduction)
-- **Build Process**: Eliminated - works directly in browsers
-- **Development Experience**: Maintained - same hooks and component patterns
-- **Deployment**: Simplified - works on any static server
-- **File Extensions**: Changed from `.jsx` to `.js` for proper MIME types
-- **Dependencies**: Moved from local npm packages to CDN imports
+### Component Props API
+
+The `LLMChatInterface` component accepts the following props:
+
+```jsx
+<LLMChatInterface
+  apiKey={string}                    // OpenRouter API key (uses localStorage if not provided)
+  defaultModel={string}              // Default model to use
+  systemPrompt={string}              // System prompt for conversation
+  tools={array}                      // Tool definitions (OpenAI format)
+  toolHandlers={object}              // Tool implementation functions
+  enableTools={boolean}              // Enable tool calling
+  toolChoice={string}                // Tool choice strategy ("auto", "required", "none")
+  parallelToolCalls={boolean}        // Allow parallel tool execution
+  onToolCall={function}              // Callback for tool execution events
+  customModels={array}               // Custom model list (overrides OpenRouter)
+  className={string}                 // Additional CSS classes
+  height={string}                    // Component height
+  showHeader={boolean}               // Show header section
+  showModelSelector={boolean}        // Show model selector
+  showClearButton={boolean}          // Show clear messages button
+  showDisplayModeToggle={boolean}    // Show markdown/text toggle
+  onMessage={function}               // Callback for new messages
+  onError={function}                 // Callback for errors
+  theme={string}                     // UI theme
+  sidebarPosition={string}           // Sidebar position ("left" or "right")
+/>
+```
+
+### Tool Calling
+
+Tools follow the OpenAI function calling format:
+
+```javascript
+const tools = [
+  {
+    type: "function",
+    function: {
+      name: "tool_name",
+      description: "Tool description",
+      parameters: {
+        type: "object",
+        properties: {
+          param: {
+            type: "string",
+            description: "Parameter description"
+          }
+        },
+        required: ["param"]
+      }
+    }
+  }
+];
+
+const toolHandlers = {
+  tool_name: ({ param }) => {
+    // Implementation
+    return { result: "value" };
+  }
+};
+```
+
+### MCP (Model Context Protocol)
+
+The interface supports connecting to MCP servers for remote tools:
+
+- **SSE Transport**: Server-Sent Events for streaming
+- **HTTP Transport**: Standard HTTP requests
+- **Auto-discovery**: Tools are automatically discovered from connected servers
+- **Python Server**: Example MCP server included (`mcp_server.py`)
+
+### Styling
+
+- **Tailwind CSS 4**: Utility-first CSS framework
+- **Custom CSS**: Global styles in `src/index.css`
+- **Radix UI**: Pre-styled accessible components
+- **Dark Mode**: Theme support (currently light theme)
+- **Responsive**: Mobile-first design approach
+
+### Build Configuration
+
+**Vite Configuration (`vite.config.js`):**
+```javascript
+{
+  plugins: [react(), tailwindcss()],
+  resolve: {
+    alias: { "@": "./src" }
+  },
+  base: './',              // For GitHub Pages
+  build: {
+    outDir: 'docs',        // Output directory
+    emptyOutDir: true
+  },
+  server: {
+    port: 8081
+  }
+}
+```
 
 ### Important Technical Details
 
-**CDN Imports:**
-All dependencies use CDN URLs for browser compatibility:
-```javascript
-import { render } from 'https://esm.sh/preact@10.19.3';
-import { useState } from 'https://esm.sh/preact@10.19.3/hooks';
-import htm from 'https://esm.sh/htm@3.1.1';
-```
+**Package Dependencies:**
+- React 19.2.1 and React DOM 19.2.1
+- Vite 7 for build tooling
+- Tailwind CSS 4 with Vite plugin
+- Radix UI component libraries
+- markdown-it for markdown rendering
+- MathJax 3 for math typesetting
+- Various utility libraries (nanoid, clsx, etc.)
 
-**MIME Type Handling:**
-- Files use `.js` extension (not `.jsx`) 
-- Static servers serve `.js` with correct `text/javascript` MIME type
-- Browsers can import ES6 modules without build process
+**Development Workflow:**
+1. Edit `.jsx` files in `src/`
+2. Vite hot reloads changes automatically
+3. Use browser DevTools for debugging
+4. Check console for tool execution logs
+5. Build with `npm run build` before deployment
 
-**htm Template Processing:**
-- Templates parsed at runtime by htm library
-- No compilation or build step required
-- Works in all modern browsers with ES6 module support
+**Production Builds:**
+- Optimized and minified JavaScript
+- CSS extracted and minified
+- Assets hashed for cache busting
+- Source maps generated for debugging
+- Output in `/docs` directory
 
-This architecture enables true zero-build deployment while maintaining a modern development experience with components, hooks, and reactive state management.
+This architecture provides a modern React development experience with fast development builds, optimized production output, and comprehensive feature support for LLM chat interfaces.

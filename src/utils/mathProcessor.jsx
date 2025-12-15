@@ -1,3 +1,6 @@
+import MarkdownIt from 'markdown-it';
+import { codeToHtml } from 'shiki';
+
 /**
  * Math processing utilities for LaTeX expressions in markdown
  * Protects math expressions from markdown processing corruption
@@ -95,8 +98,7 @@ export function preprocessMarkdownForMath(markdown) {
  * @param {string} text - Text to escape
  * @returns {string} - Escaped text
  */
-export function escapeHtml(text) {
-  const div = document.createElement('div');
+ export function escapeHtml(text) {  const div = document.createElement('div');
   div.textContent = text;
   return div.innerHTML;
 }
@@ -117,21 +119,36 @@ export function renderPlainText(content) {
  */
 export function createMarkdownRenderer() {
   try {
-    // Use global markdownit from CDN
-    if (typeof window !== 'undefined' && window.markdownit) {
-      const md = window.markdownit({
-        html: true, // Enable HTML for tables and formatting
-        breaks: true, // Convert \n to <br>
-        linkify: true, // Auto-convert URLs to links
-        typographer: true // Enable smart quotes and other typographic replacements
-      });
-      
-      // Ensure table support is enabled (should be by default, but explicitly enable)
-      md.enable(['table']);
-      
-      return md;
-    }
-    throw new Error('markdownit not available');
+    const md = new MarkdownIt({
+      html: true,
+      breaks: true,
+      linkify: true,
+      typographer: true,
+      highlight: (str, lang) => {
+        if (lang) {
+          try {
+            return codeToHtml(str, { lang, theme: 'github-dark' });
+          } catch (e) {
+            console.error(e);
+          }
+        }
+        // Fallback for no language
+        return `<pre><code class="language-text">${md.utils.escapeHtml(str)}</code></pre>`;
+      }
+    });
+
+    md.enable(['table']);
+
+    // Customize table rendering to wrap in scrollable container and ensure full width
+    md.renderer.rules.table_open = (tokens, idx, options, env, self) => {
+      return '<div class="w-full overflow-x-auto my-4">\n<table class="w-full text-left border-collapse">';
+    };
+    
+    md.renderer.rules.table_close = (tokens, idx, options, env, self) => {
+      return '</table>\n</div>';
+    };
+
+    return md;
   } catch (error) {
     console.warn('Failed to initialize markdown-it:', error);
     // Fallback if markdown-it initialization fails

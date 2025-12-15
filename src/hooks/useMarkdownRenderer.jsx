@@ -27,20 +27,22 @@ const useMarkdownRenderer = (displayMode = 'markdown') => {
 
     // Markdown mode with math support
     try {
-      // Step 1: Preprocess to protect math expressions
-      const { content: processedContent, restoreMath } = preprocessMarkdownForMath(content);
-      
-      // Step 2: Render markdown to HTML
-      let htmlContent = markdownRenderer.render(processedContent);
+      // Step 1: Render markdown to HTML first
+      let htmlContent = markdownRenderer.render(content);
+
+      // Step 2: Preprocess to protect math expressions from the HTML
+      const { content: processedContent, restoreMath } = preprocessMarkdownForMath(htmlContent);
       
       // Step 3: Only remove wrapping paragraph tags if content is simple inline text
       // Keep paragraph tags for complex content with tables, headers, etc.
-      if (!htmlContent.includes('<table>') && !htmlContent.includes('<h1>') && 
-          !htmlContent.includes('<h2>') && !htmlContent.includes('<h3>') &&
-          !htmlContent.includes('<h4>') && !htmlContent.includes('<h5>') &&
-          !htmlContent.includes('<h6>') && !htmlContent.includes('<ul>') &&
-          !htmlContent.includes('<ol>') && !htmlContent.includes('<blockquote>')) {
-        htmlContent = htmlContent.replace(/^<p>/, '').replace(/<\/p>\s*$/, '');
+      if (!processedContent.includes('<table>') && !processedContent.includes('<h1>') && 
+          !processedContent.includes('<h2>') && !processedContent.includes('<h3>') &&
+          !processedContent.includes('<h4>') && !processedContent.includes('<h5>') &&
+          !processedContent.includes('<h6>') && !processedContent.includes('<ul>') &&
+          !processedContent.includes('<ol>') && !processedContent.includes('<blockquote>')) {
+        htmlContent = processedContent.replace(/^<p>/, '').replace(/<\/p>\s*$/, '');
+      } else {
+        htmlContent = processedContent;
       }
       
       // Step 4: Restore math expressions
