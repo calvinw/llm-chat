@@ -48,7 +48,6 @@ import { nanoid } from "nanoid";
 import {
   Children,
   createContext,
-  forwardRef,
   Fragment,
   useCallback,
   useContext,
@@ -673,12 +672,12 @@ export const PromptInputBody = ({
   <div className={cn("contents", className)} {...props} />
 );
 
-export const PromptInputTextarea = forwardRef(({
+export const PromptInputTextarea = ({
   onChange,
   className,
   placeholder = "What would you like to know?",
   ...props
-}, ref) => {
+}) => {
   const controller = useOptionalPromptInputController();
   const attachments = usePromptInputAttachments();
   const [isComposing, setIsComposing] = useState(false);
@@ -755,7 +754,6 @@ export const PromptInputTextarea = forwardRef(({
 
   return (
     <InputGroupTextarea
-      ref={ref}
       className={cn("field-sizing-content max-h-48 min-h-16", className)}
       name="message"
       onCompositionEnd={() => setIsComposing(false)}
@@ -766,8 +764,7 @@ export const PromptInputTextarea = forwardRef(({
       {...props}
       {...controlledProps} />
   );
-});
-PromptInputTextarea.displayName = "PromptInputTextarea";
+};
 
 export const PromptInputHeader = ({
   className,

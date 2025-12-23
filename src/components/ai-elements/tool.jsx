@@ -22,7 +22,7 @@ export const Tool = ({
   ...props
 }) => (
   <Collapsible
-    className={cn("not-prose mb-4 w-full min-w-0 rounded-md border", className)}
+    className={cn("not-prose mb-4 w-full rounded-md border", className)}
     {...props} />
 );
 
@@ -128,7 +128,7 @@ export const ToolOutput = ({
   }
 
   return (
-    <div className={cn("space-y-2 p-4 min-w-0", className)} {...props}>
+    <div className={cn("space-y-2 p-4", className)} {...props}>
       <h4
         className="font-medium text-muted-foreground text-xs uppercase tracking-wide">
         {errorText ? "Error" : "Result"}

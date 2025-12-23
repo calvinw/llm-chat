@@ -1,5 +1,3 @@
-"use client"
-
 import * as React from "react"
 import { cva } from "class-variance-authority";
 
@@ -137,13 +135,12 @@ function InputGroupInput({
   );
 }
 
-const InputGroupTextarea = React.forwardRef(({
+function InputGroupTextarea({
   className,
   ...props
-}, ref) => {
+}) {
   return (
     <Textarea
-      ref={ref}
       data-slot="input-group-control"
       className={cn(
         "flex-1 resize-none rounded-none border-0 bg-transparent py-3 shadow-none focus-visible:ring-0 dark:bg-transparent",
@@ -151,8 +148,7 @@ const InputGroupTextarea = React.forwardRef(({
       )}
       {...props} />
   );
-})
-InputGroupTextarea.displayName = "InputGroupTextarea"
+}
 
 export {
   InputGroup,

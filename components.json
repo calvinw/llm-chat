@@ -1,7 +1,4 @@
 {
-  "registries": {
-    "@ai": "https://registry.ai-sdk.dev/{name}.json"
-  },
   "$schema": "https://ui.shadcn.com/schema.json",
   "style": "new-york",
   "rsc": false,
@@ -20,5 +17,9 @@
     "ui": "@/components/ui",
     "lib": "@/lib",
     "hooks": "@/hooks"
+  },
+  "registries": {
+    "@ai": "https://registry.ai-sdk.dev/{name}.json",
+    "@ai-elements": "https://registry.ai-sdk.dev/{name}.json"
   }
 }

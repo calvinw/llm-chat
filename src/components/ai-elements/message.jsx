@@ -11,40 +11,14 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import React, { Component, createContext, memo, useContext, useEffect, useMemo, useState } from "react";
-import remarkGfm from "remark-gfm";
-import remarkMath from "remark-math";
-import rehypeKatex from "rehype-katex";
-import "katex/dist/katex.min.css";
+import {
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  PaperclipIcon,
+  XIcon,
+} from "lucide-react";
+import { createContext, memo, useContext, useEffect, useState } from "react";
 import { Streamdown } from "streamdown";
-import { CodeBlock, CodeBlockCopyButton } from "./code-block";
-
-class StreamdownErrorBoundary extends Component {
-  constructor(props) {
-    super(props);
-    this.state = { hasError: false };
-  }
-
-  static getDerivedStateFromError(error) {
-    return { hasError: true };
-  }
-
-  componentDidCatch(error, errorInfo) {
-    console.error("Streamdown error:", error, errorInfo);
-  }
-
-  render() {
-    if (this.state.hasError) {
-       // Fallback to plain text rendering if Streamdown fails
-      return (
-        <div className="whitespace-pre-wrap font-mono text-sm">
-           {this.props.fallbackContent}
-        </div>
-      );
-    }
-    return this.props.children;
-  }
-}
 
 export const Message = ({
   className,
@@ -67,8 +41,8 @@ export const MessageContent = ({
 }) => (
   <div
     className={cn(
-      "is-user:dark flex w-full max-w-full min-w-0 flex-col gap-2 overflow-hidden text-sm",
-      "group-[.is-user]:ml-auto group-[.is-user]:w-fit group-[.is-user]:rounded-lg group-[.is-user]:bg-secondary group-[.is-user]:px-4 group-[.is-user]:py-3 group-[.is-user]:text-foreground",
+      "is-user:dark flex w-fit max-w-full min-w-0 flex-col gap-2 overflow-hidden text-sm",
+      "group-[.is-user]:ml-auto group-[.is-user]:rounded-lg group-[.is-user]:bg-secondary group-[.is-user]:px-4 group-[.is-user]:py-3 group-[.is-user]:text-foreground",
       "group-[.is-assistant]:text-foreground",
       className
     )}
@@ -277,43 +251,12 @@ export const MessageBranchPage = ({
 
 export const MessageResponse = memo(({
   className,
-  children,
   ...props
-}) => {
-  const components = useMemo(() => ({
-    code({ className, children, ...props }) {
-      const match = /language-(\w+)/.exec(className || "");
-      return match ? (
-        <CodeBlock
-          code={String(children).replace(/\n$/, "")}
-          language={match[1]}
-          {...props}>
-          <CodeBlockCopyButton />
-        </CodeBlock>
-      ) : (
-        <code className={className} {...props}>
-          {children}
-        </code>
-      );
-    },
-  }), []);
-
-  const remarkPlugins = useMemo(() => [remarkGfm, remarkMath], []);
-  const rehypePlugins = useMemo(() => [rehypeKatex], []);
-
-  return (
-    <StreamdownErrorBoundary fallbackContent={children}>
-      <Streamdown
-        className={cn("size-full [&>*:first-child]:mt-0 [&>*:last-child]:mb-0", className)}
-        components={components}
-        remarkPlugins={remarkPlugins}
-        rehypePlugins={rehypePlugins}
-        {...props}>
-        {children}
-      </Streamdown>
-    </StreamdownErrorBoundary>
-  );
-}, (prevProps, nextProps) => prevProps.children === nextProps.children);
+}) => (
+  <Streamdown
+    className={cn("size-full [&>*:first-child]:mt-0 [&>*:last-child]:mb-0", className)}
+    {...props} />
+), (prevProps, nextProps) => prevProps.children === nextProps.children);
 
 MessageResponse.displayName = "MessageResponse";
 
